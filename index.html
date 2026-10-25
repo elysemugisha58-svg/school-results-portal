@@ -31,6 +31,14 @@ main{min-width:0;padding:28px clamp(16px,3vw,38px) 40px}.topbar{display:flex;jus
   const supabaseClient = window.supabase.createClient(
     SUPABASE_URL,
     SUPABASE_PUBLISHABLE_KEY
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  }
+);
   );
 </script>
 </head> 

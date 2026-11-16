@@ -1,9 +1,19 @@
+/* =========================================================
+   EduConnect — Firebase + Three.js integration
+   ---------------------------------------------------------
+   ➜ STEP 1: Paste your Firebase config below (section 1).
+   ➜ STEP 2: Firebase Console → Authentication → Sign-in
+             method, enable Email/Password.
+   ➜ STEP 3: Add your domain + localhost to Authentication →
+             Settings → Authorized domains.
+   ➜ STEP 4: Firestore rules must include the fee gate +
+             feedback + submissions + applications branches.
+   ========================================================= */
+
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
   signInWithEmailAndPassword,
-  signInWithPhoneNumber,
-  RecaptchaVerifier,
   onAuthStateChanged,
   signOut
 } from "firebase/auth";
@@ -11,19 +21,28 @@ import {
   getFirestore,
   doc,
   getDoc,
+  addDoc,
+  updateDoc,
   collection,
-  getCountFromServer
+  getDocs,
+  getCountFromServer,
+  query,
+  where,
+  limit,
+  serverTimestamp
 } from "firebase/firestore";
 import * as THREE from "three";
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+
+/* ---------------------------------------------------------
+   1. FIREBASE CONFIG  — REPLACE WITH YOUR OWN VALUES
+   --------------------------------------------------------- */
 const firebaseConfig = {
-  apiKey: "AIzaSyBCcWkAzjh9FLpphYIdpLNcDQRhVK5FKcM",
-  authDomain: "educonnect-5885b.firebaseapp.com",
-  projectId: "educonnect-5885b",
-  storageBucket: "educonnect-5885b.firebasestorage.app",
-  messagingSenderId: "814892024989",
-  appId: "1:814892024989:web:3be333f2078732aa02c074",
-  measurementId: "G-GKQ1WWG2PQ"
+  apiKey:            "PASTE_YOUR_API_KEY",
+  authDomain:        "PASTE_YOUR_PROJECT.firebaseapp.com",
+  projectId:         "PASTE_YOUR_PROJECT_ID",
+  storageBucket:     "PASTE_YOUR_PROJECT.appspot.com",
+  messagingSenderId: "PASTE_YOUR_SENDER_ID",
+  appId:             "PASTE_YOUR_APP_ID"
 };
 
 let app = null, auth = null, db = null, firebaseReady = false;
@@ -106,16 +125,12 @@ if (yearEl) yearEl.textContent = String(new Date().getFullYear());
 const modal      = document.getElementById("login-modal");
 const modalSub   = document.getElementById("modal-sub");
 const loginForm  = document.getElementById("login-form");
-const otpForm    = document.getElementById("otp-form");
 const formNote   = document.getElementById("form-note");
-const otpNote    = document.getElementById("otp-note");
 const emailField = document.getElementById("field-email");
-const phoneField = document.getElementById("field-phone");
 const passField  = document.getElementById("field-password");
 const submitBtn  = document.getElementById("login-submit");
 
 let lastFocused = null;
-let confirmationResult = null;
 
 function openModal(role) {
   if (!modal) return;
@@ -137,23 +152,15 @@ function closeModal() {
 
 function resetForms() {
   loginForm?.reset();
-  otpForm?.reset();
   if (loginForm) loginForm.hidden = false;
-  if (otpForm)   otpForm.hidden = true;
   if (formNote) { formNote.textContent = ""; formNote.className = "form-note"; }
-  if (otpNote)  { otpNote.textContent = "";  otpNote.className  = "form-note"; }
-  confirmationResult = null;
 }
 
 function updateAuthFields(role) {
-  const isTeacher = role === "teacher";
-  if (emailField) emailField.hidden = isTeacher;
-  if (passField)  passField.hidden  = isTeacher;
-  if (phoneField) phoneField.hidden = !isTeacher;
-  if (submitBtn)  submitBtn.textContent = isTeacher ? "Send SMS code" : "Sign in";
-  if (modalSub)   modalSub.textContent = isTeacher
-    ? "Teachers sign in with a phone number and SMS code."
-    : `Signing in as ${ROLE_LABELS[role]}.`;
+  if (emailField) emailField.hidden = false;
+  if (passField)  passField.hidden  = false;
+  if (submitBtn)  submitBtn.textContent = "Sign in";
+  if (modalSub)   modalSub.textContent = `Signing in as ${ROLE_LABELS[role]}.`;
 }
 
 document.querySelectorAll("[data-open-modal]").forEach(btn => {
@@ -174,15 +181,11 @@ document.querySelectorAll(".role-tab").forEach(tab => {
 });
 
 /* ---------------------------------------------------------
-   5. SIGN IN — EMAIL / PASSWORD
+   5. SIGN IN — EMAIL / PASSWORD (all roles)
    --------------------------------------------------------- */
 loginForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!firebaseReady) return note(formNote, "Add your Firebase config in script.js first.", "error");
-
-  if (currentRole === "teacher") {
-    return startPhoneSignIn();
-  }
 
   const email = document.getElementById("login-email").value.trim();
   const password = document.getElementById("login-password").value;
@@ -203,74 +206,16 @@ loginForm?.addEventListener("submit", async (e) => {
   }
 });
 
-/* ---------------------------------------------------------
-   6. SIGN IN — PHONE OTP (TEACHERS)
-   --------------------------------------------------------- */
-async function startPhoneSignIn() {
-  const phone = document.getElementById("login-phone").value.trim();
-  if (!/^\+\d{8,15}$/.test(phone.replace(/\s+/g, ""))) {
-    return note(formNote, "Enter the phone number with country code, e.g. +250788123456.", "error");
-  }
-
-  submitBtn.disabled = true;
-  note(formNote, "Sending SMS code…");
-
-  try {
-    if (!window.__recaptcha) {
-      window.__recaptcha = new RecaptchaVerifier(auth, "recaptcha-container", { size: "invisible" });
-    }
-    confirmationResult = await signInWithPhoneNumber(auth, phone, window.__recaptcha);
-    loginForm.hidden = true;
-    otpForm.hidden = false;
-    document.getElementById("otp-code").focus();
-    note(otpNote, `Code sent to ${phone}.`);
-  } catch (err) {
-    console.error(err);
-    note(formNote, friendlyAuthError(err), "error");
-    try { window.__recaptcha?.clear(); window.__recaptcha = null; } catch {}
-  } finally {
-    submitBtn.disabled = false;
-  }
-}
-
-otpForm?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const code = document.getElementById("otp-code").value.trim();
-  if (!/^\d{6}$/.test(code)) return note(otpNote, "Enter the 6-digit code.", "error");
-  if (!confirmationResult)   return note(otpNote, "Request a new code first.", "error");
-
-  document.getElementById("otp-submit").disabled = true;
-  note(otpNote, "Verifying…");
-
-  try {
-    await confirmationResult.confirm(code);
-    note(otpNote, "Verified. Loading your workspace…", "ok");
-    closeModal();
-  } catch (err) {
-    note(otpNote, friendlyAuthError(err), "error");
-  } finally {
-    document.getElementById("otp-submit").disabled = false;
-  }
-});
-
-document.getElementById("otp-back")?.addEventListener("click", () => {
-  resetForms();
-  updateAuthFields(currentRole);
-});
-
 function friendlyAuthError(err) {
   const map = {
-    "auth/invalid-email":          "That email address doesn't look right.",
-    "auth/user-not-found":         "No account found with that email.",
-    "auth/wrong-password":         "Incorrect password.",
-    "auth/invalid-credential":     "Email or password is incorrect.",
-    "auth/too-many-requests":      "Too many attempts. Try again later.",
-    "auth/invalid-phone-number":   "That phone number isn't valid. Include the country code.",
-    "auth/invalid-verification-code": "That SMS code is incorrect.",
-    "auth/code-expired":           "That code has expired. Request a new one.",
-    "auth/operation-not-allowed":  "This sign-in method isn't enabled in Firebase yet.",
-    "auth/unauthorized-domain":    "This domain isn't authorised in Firebase Authentication settings.",
-    "auth/invalid-app-credential": "reCAPTCHA failed. Reload the page and try again."
+    "auth/invalid-email":         "That email address doesn't look right.",
+    "auth/user-not-found":        "No account found with that email.",
+    "auth/wrong-password":        "Incorrect password.",
+    "auth/invalid-credential":    "Email or password is incorrect.",
+    "auth/too-many-requests":     "Too many attempts. Try again later.",
+    "auth/operation-not-allowed": "Email/Password sign-in isn't enabled in Firebase yet.",
+    "auth/unauthorized-domain":   "This domain isn't authorised in Firebase Authentication settings.",
+    "auth/network-request-failed":"Network error — check your connection."
   };
   return map[err?.code] || err?.message || "Something went wrong. Please try again.";
 }
@@ -282,7 +227,7 @@ function note(el, text, type = "") {
 }
 
 /* ---------------------------------------------------------
-   7. SESSION STATE → ROLE-BASED DASHBOARD
+   6. SESSION STATE → ROLE-BASED DASHBOARD
    --------------------------------------------------------- */
 const navSignin   = document.getElementById("nav-signin");
 const navSignout  = document.getElementById("nav-signout");
@@ -294,6 +239,7 @@ if (firebaseReady) {
       navSignin?.removeAttribute("hidden");
       navSignout?.setAttribute("hidden", "");
       if (dashSection) dashSection.hidden = true;
+      ["users-panel","parent-panel","student-panel","admin-extras"].forEach(id => showPanel(id, false));
       return;
     }
 
@@ -304,10 +250,10 @@ if (firebaseReady) {
     if (!profile) {
       if (dashSection) {
         dashSection.hidden = false;
-        document.getElementById("dash-name").textContent = user.email || user.phoneNumber || "there";
+        document.getElementById("dash-name").textContent = user.email || "there";
         document.getElementById("dash-role-label").textContent = "No profile found";
         document.getElementById("dash-sub").textContent =
-          "Your account is authenticated but has no Firestore profile yet. Create a doc in the `users` collection with ID " + user.uid + ".";
+          "Your account is authenticated but has no Firestore profile yet. Create a doc in `users` with ID " + user.uid + " and fields { role, schoolId, name }.";
         document.getElementById("dash-grid").innerHTML = "";
       }
       return;
@@ -338,7 +284,7 @@ async function renderDashboard(user, profile) {
   dashSection.hidden = false;
 
   document.getElementById("dash-role-label").textContent = ROLE_LABELS[profile.role] || "Portal";
-  document.getElementById("dash-name").textContent = profile.name || user.email || user.phoneNumber || "there";
+  document.getElementById("dash-name").textContent = profile.name || user.email || "there";
   document.getElementById("dash-sub").textContent =
     profile.schoolId ? `School workspace: ${profile.schoolId}` : "Platform-wide workspace";
 
@@ -357,6 +303,16 @@ async function renderDashboard(user, profile) {
       </div>
     `).join("");
     if (noteEl) { noteEl.textContent = "Counts are read live from Firestore, scoped to your school."; noteEl.className = "dash-note"; }
+
+    showPanel("users-panel",     profile.role === "super-admin");
+    showPanel("parent-panel",    profile.role === "parent");
+    showPanel("student-panel",   profile.role === "student");
+    showPanel("admin-extras",    profile.role === "school-admin");
+
+    if (profile.role === "super-admin")  await renderUsersPanel(profile.uid);
+    if (profile.role === "parent")       await renderParentPanel(profile);
+    if (profile.role === "student")      await renderStudentPanel(profile);
+    if (profile.role === "school-admin") await renderAdminExtras(profile);
   } catch (err) {
     console.error(err);
     if (noteEl) { noteEl.textContent = "Could not read Firestore: " + err.message; noteEl.className = "dash-note error"; }
@@ -377,6 +333,7 @@ async function buildCards(profile) {
   if (profile.role === "super-admin") {
     cards.push({ label: "Schools", value: await count("schools"), detail: "Registered on the platform" });
     cards.push({ label: "Users", value: await count("users"), detail: "All portal accounts" });
+    cards.push({ label: "Applications", value: await count("applications"), detail: "Public enrolment submissions" });
     cards.push({ label: "Your access", value: "Full", detail: "Platform governance" });
   } else if (profile.role === "school-admin" && sid) {
     cards.push({ label: "Students", value: await count(`schools/${sid}/students`), detail: "Enrolled in your school" });
@@ -386,14 +343,17 @@ async function buildCards(profile) {
   } else if (profile.role === "teacher" && sid) {
     cards.push({ label: "School", value: sid, detail: "Your assigned workspace" });
     cards.push({ label: "Classes", value: await count(`schools/${sid}/classes`), detail: "Available to you" });
+    cards.push({ label: "Assignments", value: await count(`schools/${sid}/assignments`), detail: "Posted by staff" });
     cards.push({ label: "CPD sessions", value: await count(`schools/${sid}/cpd`), detail: "Open for check-in" });
   } else if (profile.role === "parent") {
-    const kids = Array.isArray(profile.children) ? profile.children : [];
-    cards.push({ label: "Children", value: String(kids.length), detail: kids.map(k => k.name || k.studentId).join(", ") || "None linked yet" });
-    cards.push({ label: "Access", value: "Read-only", detail: "Downloads and printing disabled" });
+    const kids = Array.isArray(profile.childUids) ? profile.childUids : [];
+    cards.push({ label: "Children", value: String(kids.length), detail: kids.length ? "Linked to your account" : "None linked yet" });
+    cards.push({ label: "Fee status", value: profile.feesCleared ? "Cleared" : "Unpaid", detail: profile.feesCleared ? "Results unlocked" : "Results locked" });
+    cards.push({ label: "Access", value: "Read-only", detail: "Plus feedback & applications" });
   } else if (profile.role === "student") {
     cards.push({ label: "Student ID", value: profile.studentId || "—", detail: "Your academic record" });
     cards.push({ label: "School", value: sid || "—", detail: "Your workspace" });
+    cards.push({ label: "Assignments", value: await count(`schools/${sid}/assignments`), detail: "Open for submission" });
   } else {
     cards.push({ label: "Status", value: "Signed in", detail: "Profile loaded" });
   }
@@ -407,8 +367,396 @@ function escapeHtml(s) {
   }[ch]));
 }
 
+function showPanel(id, on) {
+  const el = document.getElementById(id);
+  if (el) el.hidden = !on;
+}
+
 /* ---------------------------------------------------------
-   8. THREE.JS HERO — interactive globe with data arcs
+   7. SUPER ADMIN — USER ROLE MANAGEMENT
+   --------------------------------------------------------- */
+const ROLE_OPTIONS = [
+  { value: "super-admin",  label: "Super Admin" },
+  { value: "school-admin", label: "School Admin" },
+  { value: "teacher",      label: "Teacher" },
+  { value: "parent",       label: "Parent" },
+  { value: "student",      label: "Student" }
+];
+
+async function renderUsersPanel(currentUid) {
+  const tbody  = document.getElementById("users-tbody");
+  const noteEl = document.getElementById("users-note");
+  if (!tbody) return;
+
+  tbody.innerHTML = `<tr><td colspan="5" class="users-empty">Loading users…</td></tr>`;
+  if (noteEl) { noteEl.textContent = ""; noteEl.className = "form-note"; }
+
+  try {
+    const snap = await getDocs(collection(db, "users"));
+    if (snap.empty) {
+      tbody.innerHTML = `<tr><td colspan="5" class="users-empty">No user documents yet.</td></tr>`;
+      return;
+    }
+
+    const rows = [];
+    snap.forEach(d => {
+      const data = d.data();
+      rows.push({
+        uid:      d.id,
+        email:    data.email    || "",
+        phone:    data.phone    || "",
+        name:     data.name     || "—",
+        schoolId: data.schoolId || "—",
+        role:     data.role     || "student"
+      });
+    });
+    rows.sort((a, b) => a.name.localeCompare(b.name));
+
+    tbody.innerHTML = rows.map(r => {
+      const isSelf = r.uid === currentUid;
+      const options = ROLE_OPTIONS.map(o =>
+        `<option value="${o.value}" ${o.value === r.role ? "selected" : ""}>${o.label}</option>`
+      ).join("");
+
+      return `
+        <tr>
+          <td>${escapeHtml(r.name)}${isSelf ? ' <small>(you)</small>' : ""}</td>
+          <td>${escapeHtml(r.email || r.phone || "—")}</td>
+          <td>${escapeHtml(r.schoolId)}</td>
+          <td><span class="role-pill">${escapeHtml(ROLE_LABELS[r.role] || r.role)}</span></td>
+          <td>
+            <select class="role-select" data-uid="${escapeHtml(r.uid)}"
+              ${isSelf ? `disabled title="You cannot change your own role"` : ""}>
+              ${options}
+            </select>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    tbody.querySelectorAll(".role-select").forEach(sel => {
+      sel.addEventListener("change", () => changeUserRole(sel.dataset.uid, sel.value, sel));
+    });
+  } catch (err) {
+    console.error("Failed to load users:", err);
+    tbody.innerHTML = `<tr><td colspan="5" class="users-empty">Failed to load: ${escapeHtml(err.message)}</td></tr>`;
+  }
+}
+
+async function changeUserRole(uid, newRole, selectEl) {
+  const noteEl = document.getElementById("users-note");
+  if (!ROLE_OPTIONS.some(o => o.value === newRole)) return;
+
+  selectEl.disabled = true;
+  if (noteEl) { noteEl.textContent = "Updating role…"; noteEl.className = "form-note"; }
+
+  try {
+    await updateDoc(doc(db, "users", uid), { role: newRole });
+    if (noteEl) {
+      noteEl.textContent = `Role updated to ${ROLE_LABELS[newRole] || newRole}. The affected user will see the change on their next page load.`;
+      noteEl.className = "form-note ok";
+    }
+    const row  = selectEl.closest("tr");
+    const pill = row?.querySelector(".role-pill");
+    if (pill) pill.textContent = ROLE_LABELS[newRole] || newRole;
+  } catch (err) {
+    console.error("Role update failed:", err);
+    if (noteEl) { noteEl.textContent = "Update failed: " + err.message; noteEl.className = "form-note error"; }
+  } finally {
+    selectEl.disabled = false;
+  }
+}
+
+/* ---------------------------------------------------------
+   8. PARENT PANEL
+   --------------------------------------------------------- */
+function renderMarksTable(marks) {
+  if (!marks.length) return `<p class="muted">No marks recorded yet.</p>`;
+  const rows = marks.map(m => `
+    <tr>
+      <td>${escapeHtml(m.subjectId || "—")}</td>
+      <td>${escapeHtml(m.examName || "—")}</td>
+      <td>${m.score ?? "—"} / ${m.outOf ?? "—"}</td>
+    </tr>`).join("");
+  return `<table class="mini-table"><thead><tr><th>Subject</th><th>Exam</th><th>Score</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function renderParentPanel(profile) {
+  const sid = profile.schoolId;
+
+  const banner = document.getElementById("fee-banner");
+  if (banner) banner.hidden = profile.feesCleared === true;
+
+  const resultsEl = document.getElementById("parent-results");
+  if (resultsEl) {
+    if (!profile.feesCleared) {
+      resultsEl.innerHTML = `<p class="muted">Results will appear here once fees are cleared.</p>`;
+    } else if (!Array.isArray(profile.childUids) || profile.childUids.length === 0) {
+      resultsEl.innerHTML = `<p class="muted">No children linked to your account yet.</p>`;
+    } else {
+      try {
+        const all = [];
+        for (const childUid of profile.childUids) {
+          const snap = await getDocs(query(
+            collection(db, "schools", sid, "marks"),
+            where("studentId", "==", childUid),
+            limit(30)
+          ));
+          snap.forEach(d => all.push(d.data()));
+        }
+        resultsEl.innerHTML = renderMarksTable(all);
+      } catch (err) {
+        resultsEl.innerHTML = `<p class="muted error">Could not load marks: ${escapeHtml(err.message)}</p>`;
+      }
+    }
+  }
+
+  const annEl = document.getElementById("parent-announcements");
+  if (annEl) {
+    try {
+      const snap = await getDocs(collection(db, "schools", sid, "announcements"));
+      const items = [];
+      snap.forEach(d => items.push(d.data()));
+      annEl.innerHTML = items.length
+        ? items.map(a => `<div class="list-item"><strong>${escapeHtml(a.title||"")}</strong><p>${escapeHtml(a.body||"")}</p></div>`).join("")
+        : `<p class="muted">No announcements yet.</p>`;
+    } catch (err) {
+      annEl.innerHTML = `<p class="muted error">${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  const fbEl = document.getElementById("feedback-history");
+  if (fbEl) {
+    try {
+      const snap = await getDocs(collection(db, "schools", sid, "feedback"));
+      const mine = [];
+      snap.forEach(d => { if (d.data().authorUid === profile.uid) mine.push(d.data()); });
+      fbEl.innerHTML = mine.length
+        ? mine.map(f => `<div class="list-item"><strong>${escapeHtml(f.target||"general")}</strong><p>${escapeHtml(f.message||"")}</p>${f.reply ? `<p class="reply"><em>School reply:</em> ${escapeHtml(f.reply)}</p>` : ""}</div>`).join("")
+        : `<p class="muted">You haven't sent any messages yet.</p>`;
+    } catch { fbEl.innerHTML = `<p class="muted">—</p>`; }
+  }
+
+  const fbForm = document.getElementById("feedback-form");
+  if (fbForm && !fbForm.dataset.wired) {
+    fbForm.dataset.wired = "1";
+    fbForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("fb-message").value.trim();
+      const tgt = document.getElementById("fb-target").value;
+      const n   = document.getElementById("fb-note");
+      if (!msg) return note(n, "Write a message first.", "error");
+      try {
+        await addDoc(collection(db, "schools", sid, "feedback"), {
+          authorUid: profile.uid, authorName: profile.name || "Parent",
+          message: msg, target: tgt, createdAt: serverTimestamp()
+        });
+        note(n, "Sent. Thank you!", "ok");
+        fbForm.reset();
+        await renderParentPanel(profile);
+      } catch (err) {
+        note(n, "Could not send: " + err.message, "error");
+      }
+    });
+  }
+
+  const asgEl = document.getElementById("parent-assignments");
+  if (asgEl && Array.isArray(profile.childUids)) {
+    try {
+      const snap = await getDocs(collection(db, "schools", sid, "assignments"));
+      const items = [];
+      snap.forEach(d => items.push(d.data()));
+      asgEl.innerHTML = items.length
+        ? items.map(a => `<div class="list-item"><strong>${escapeHtml(a.title||"")}</strong><p>${escapeHtml(a.description||"")}</p><small>Due: ${escapeHtml(a.dueDate||"—")}</small></div>`).join("")
+        : `<p class="muted">No assignments posted.</p>`;
+    } catch { asgEl.innerHTML = `<p class="muted">—</p>`; }
+  }
+}
+
+/* ---------------------------------------------------------
+   9. STUDENT PANEL
+   --------------------------------------------------------- */
+async function renderStudentPanel(profile) {
+  const sid = profile.schoolId;
+  const sidUid = profile.studentId;
+
+  const asgEl = document.getElementById("student-assignments");
+  const subEl = document.getElementById("student-submissions");
+
+  let assignments = [], submissions = [];
+  try {
+    const aSnap = await getDocs(collection(db, "schools", sid, "assignments"));
+    aSnap.forEach(d => assignments.push({ id: d.id, ...d.data() }));
+    const sSnap = await getDocs(query(
+      collection(db, "schools", sid, "submissions"),
+      where("studentId", "==", sidUid)
+    ));
+    sSnap.forEach(d => submissions.push({ id: d.id, ...d.data() }));
+  } catch (err) {
+    if (asgEl) asgEl.innerHTML = `<p class="muted error">${escapeHtml(err.message)}</p>`;
+    return;
+  }
+
+  const submitted = new Set(submissions.map(s => s.assignmentId));
+
+  if (asgEl) {
+    asgEl.innerHTML = assignments.length
+      ? assignments.map(a => {
+          const done = submitted.has(a.id);
+          return `<div class="list-item"><strong>${escapeHtml(a.title||"")}</strong><p>${escapeHtml(a.description||"")}</p><small>Due: ${escapeHtml(a.dueDate||"—")}</small>${done ? `<span class="badge ok">Submitted</span>` : `<button class="btn btn-primary btn-sm" data-submit="${escapeHtml(a.id)}">Submit</button>`}</div>`;
+        }).join("")
+      : `<p class="muted">No assignments yet.</p>`;
+    asgEl.querySelectorAll("[data-submit]").forEach(b =>
+      b.addEventListener("click", () => submitAssignment(b.dataset.submit, profile))
+    );
+  }
+
+  if (subEl) {
+    subEl.innerHTML = submissions.length
+      ? submissions.map(s => `<div class="list-item"><strong>${escapeHtml(s.assignmentId||"")}</strong><p>${escapeHtml(s.content||"")}</p><small>Status: ${escapeHtml(s.status||"submitted")}${s.grade ? ` · Grade: ${escapeHtml(String(s.grade))}` : ""}</small></div>`).join("")
+      : `<p class="muted">No submissions yet.</p>`;
+  }
+
+  const resEl = document.getElementById("student-results");
+  if (resEl) {
+    try {
+      const snap = await getDocs(query(
+        collection(db, "schools", sid, "marks"),
+        where("studentId", "==", sidUid)
+      ));
+      const marks = [];
+      snap.forEach(d => marks.push(d.data()));
+      resEl.innerHTML = renderMarksTable(marks);
+    } catch (err) {
+      resEl.innerHTML = `<p class="muted error">${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  const annEl = document.getElementById("student-announcements");
+  if (annEl) {
+    try {
+      const snap = await getDocs(collection(db, "schools", sid, "announcements"));
+      const items = [];
+      snap.forEach(d => items.push(d.data()));
+      annEl.innerHTML = items.length
+        ? items.map(a => `<div class="list-item"><strong>${escapeHtml(a.title||"")}</strong><p>${escapeHtml(a.body||"")}</p></div>`).join("")
+        : `<p class="muted">No announcements.</p>`;
+    } catch { annEl.innerHTML = `<p class="muted">—</p>`; }
+  }
+}
+
+async function submitAssignment(assignmentId, profile) {
+  const content = prompt("Paste your answer / notes for this assignment:");
+  if (!content) return;
+  try {
+    await addDoc(collection(db, "schools", profile.schoolId, "submissions"), {
+      assignmentId, studentId: profile.studentId,
+      studentName: profile.name || "Student",
+      content, submittedAt: serverTimestamp(), status: "submitted"
+    });
+    await renderStudentPanel(profile);
+  } catch (err) { alert("Submission failed: " + err.message); }
+}
+
+/* ---------------------------------------------------------
+   10. ADMIN EXTRAS
+   --------------------------------------------------------- */
+async function renderAdminExtras(profile) {
+  const sid = profile.schoolId;
+
+  const apEl = document.getElementById("admin-applications");
+  if (apEl) {
+    try {
+      const snap = await getDocs(query(
+        collection(db, "applications"),
+        where("schoolId", "==", sid),
+        where("status", "==", "pending")
+      ));
+      const items = [];
+      snap.forEach(d => items.push({ id: d.id, ...d.data() }));
+      apEl.innerHTML = items.length
+        ? items.map(a => `<div class="list-item"><strong>${escapeHtml(a.studentName||"")}</strong><p>${escapeHtml(a.parentName||"")} · ${escapeHtml(a.parentPhone||"")} · ${escapeHtml(a.classAppliedFor||"")}</p><div class="row-actions"><button class="btn btn-primary btn-sm" data-app-approve="${escapeHtml(a.id)}">Approve</button><button class="btn btn-ghost btn-sm" data-app-reject="${escapeHtml(a.id)}">Reject</button></div></div>`).join("")
+        : `<p class="muted">No pending applications.</p>`;
+      apEl.querySelectorAll("[data-app-approve]").forEach(b =>
+        b.addEventListener("click", () => updateApplication(b.dataset.appApprove, "approved")));
+      apEl.querySelectorAll("[data-app-reject]").forEach(b =>
+        b.addEventListener("click", () => updateApplication(b.dataset.appReject, "rejected")));
+    } catch (err) {
+      apEl.innerHTML = `<p class="muted error">${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  const prEl = document.getElementById("admin-parents");
+  if (prEl) {
+    try {
+      const snap = await getDocs(query(
+        collection(db, "users"),
+        where("schoolId", "==", sid),
+        where("role", "==", "parent")
+      ));
+      const items = [];
+      snap.forEach(d => items.push({ id: d.id, ...d.data() }));
+      prEl.innerHTML = items.length
+        ? items.map(p => `<div class="list-item fee-row"><div><strong>${escapeHtml(p.name||p.email||p.id)}</strong><p class="muted">${escapeHtml(p.email||"")}</p></div><label class="switch"><input type="checkbox" data-parent-toggle="${escapeHtml(p.id)}" ${p.feesCleared ? "checked" : ""} /><span>${p.feesCleared ? "Cleared" : "Unpaid"}</span></label></div>`).join("")
+        : `<p class="muted">No parents in your school yet.</p>`;
+      prEl.querySelectorAll("[data-parent-toggle]").forEach(cb => {
+        cb.addEventListener("change", async () => {
+          try {
+            await updateDoc(doc(db, "users", cb.dataset.parentToggle), { feesCleared: cb.checked });
+            cb.nextElementSibling.textContent = cb.checked ? "Cleared" : "Unpaid";
+          } catch (err) {
+            alert("Update failed: " + err.message);
+            cb.checked = !cb.checked;
+          }
+        });
+      });
+    } catch (err) {
+      prEl.innerHTML = `<p class="muted error">${escapeHtml(err.message)}</p>`;
+    }
+  }
+}
+
+async function updateApplication(id, status) {
+  try {
+    await updateDoc(doc(db, "applications", id), { status });
+    const el = document.getElementById("admin-applications");
+    if (el) el.querySelector(`[data-app-approve="${id}"], [data-app-reject="${id}"]`)?.closest(".list-item")?.remove();
+  } catch (err) { alert("Update failed: " + err.message); }
+}
+
+/* ---------------------------------------------------------
+   11. PUBLIC APPLICATION FORM (no login required)
+   --------------------------------------------------------- */
+(function wireApplicationForm() {
+  const form = document.getElementById("apply-form");
+  if (!form) return;
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const n = document.getElementById("apply-note");
+    if (!firebaseReady) return note(n, "Firebase not configured.", "error");
+    try {
+      await addDoc(collection(db, "applications"), {
+        studentName:     document.getElementById("ap-student").value.trim(),
+        classAppliedFor: document.getElementById("ap-class").value.trim(),
+        parentName:      document.getElementById("ap-parent").value.trim(),
+        parentPhone:     document.getElementById("ap-phone").value.trim(),
+        parentEmail:     document.getElementById("ap-email").value.trim(),
+        schoolId:        document.getElementById("ap-school").value.trim(),
+        previousSchool:  "",
+        notes:           document.getElementById("ap-notes").value.trim(),
+        status:          "pending",
+        submittedAt:     serverTimestamp()
+      });
+      note(n, "Application submitted ✓ The school will contact you.", "ok");
+      form.reset();
+    } catch (err) {
+      note(n, "Could not submit: " + err.message, "error");
+    }
+  });
+})();
+
+/* ---------------------------------------------------------
+   12. THREE.JS HERO
    --------------------------------------------------------- */
 let renderer = null, scene = null, camera = null;
 let globe = null, arcsGroup = null, globePoints = null;
@@ -428,18 +776,11 @@ function supportsWebGL() {
 }
 
 function initThree() {
-  // Guard: re-select the canvas every time in case DOM wasn't ready earlier
   const canvas = document.getElementById("hero-canvas");
-  if (!canvas) {
-    console.warn("Hero canvas not found — showing fallback.");
-    return showFallback();
-  }
+  if (!canvas) return showFallback();
   if (lowPower) return showFallback();
-  if (!supportsWebGL()) {
-    console.warn("WebGL not supported — showing fallback.");
-    return showFallback();
-  }
-  if (threeInit) return; // prevent double-init
+  if (!supportsWebGL()) return showFallback();
+  if (threeInit) return;
 
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -462,34 +803,27 @@ function initThree() {
   camera = new THREE.PerspectiveCamera(
     45,
     (canvas.clientWidth || window.innerWidth) / (canvas.clientHeight || window.innerHeight),
-    0.1,
-    100
+    0.1, 100
   );
   camera.position.set(0, 0, 6.2);
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.9));
 
-  // Wireframe sphere
   const geo = new THREE.SphereGeometry(2, 32, 24);
   const mat = new THREE.MeshBasicMaterial({
     color: new THREE.Color(accentColor()),
-    wireframe: true,
-    transparent: true,
-    opacity: 0.22
+    wireframe: true, transparent: true, opacity: 0.22
   });
   globe = new THREE.Mesh(geo, mat);
   scene.add(globe);
 
-  // Inner glow
   const glowGeo = new THREE.SphereGeometry(1.95, 32, 24);
   const glowMat = new THREE.MeshBasicMaterial({
     color: new THREE.Color(accentColor()),
-    transparent: true,
-    opacity: 0.05
+    transparent: true, opacity: 0.05
   });
   scene.add(new THREE.Mesh(glowGeo, glowMat));
 
-  // Node dots
   globePoints = new THREE.Group();
   const dotGeo = new THREE.SphereGeometry(0.028, 8, 8);
   const dotMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(accentColor()) });
@@ -507,12 +841,10 @@ function initThree() {
   }
   scene.add(globePoints);
 
-  // Data arcs
   arcsGroup = new THREE.Group();
   const arcMat = new THREE.LineBasicMaterial({
     color: new THREE.Color(accentColor()),
-    transparent: true,
-    opacity: 0.4
+    transparent: true, opacity: 0.4
   });
   const schools = [
     [1.9, 0.3, 0.4], [-1.2, 1.4, 0.6], [0.4, -1.8, 0.7],
@@ -570,7 +902,6 @@ function loop() {
     camera.position.y += (-pointer.y * 0.35 - camera.position.y) * 0.03;
     camera.lookAt(0, 0, 0);
   }
-
   if (renderer && scene && camera) renderer.render(scene, camera);
 }
 
@@ -617,9 +948,6 @@ document.addEventListener("visibilitychange", () => {
   else if (!lowPower && threeInit) loop();
 });
 
-/* ---------------------------------------------------------
-   9. BOOT — wait for full page load so the canvas exists
-   --------------------------------------------------------- */
 if (document.readyState === "complete") {
   initThree();
 } else {

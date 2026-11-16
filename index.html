@@ -1,255 +1,389 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>School Results Portal</title>
-  <link rel="stylesheet" href="style.css">
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
-    }
-  }
-  </script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#050d14" />
+<title>EduConnect — Connecting Schools. Empowering Education.</title>
+<meta name="description" content="EduConnect is a secure multi-tenant school management platform for primary and secondary schools across Africa." />
+
+<link rel="preconnect" href="https://unpkg.com" crossorigin />
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin />
+<link rel="stylesheet" href="style.css" />
 </head>
-<body>
 
-<canvas id="bg-canvas"></canvas>
+<body data-theme="school-admin">
+<a class="skip-link" href="#main">Skip to content</a>
 
-<!-- ================= LOGIN ================= -->
-<div id="login-screen" class="login-shell">
-  <div class="login-card">
-    <div class="brand-row">
-      <div class="logo">SR</div>
-      <div>
-        <strong>School Results</strong>
-        <small>Management Portal</small>
+<!-- ============ NAV ============ -->
+<header class="nav" id="nav">
+  <div class="container nav-inner">
+    <a href="#home" class="brand" aria-label="EduConnect home">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none">
+          <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.6" opacity=".45"/>
+          <ellipse cx="16" cy="16" rx="6" ry="14" stroke="currentColor" stroke-width="1.4" opacity=".7"/>
+          <path d="M2 16h28" stroke="currentColor" stroke-width="1.4" opacity=".55"/>
+          <circle cx="16" cy="16" r="2.6" fill="currentColor"/>
+        </svg>
+      </span>
+      <span class="brand-text">Edu<span>Connect</span></span>
+    </a>
+
+    <nav class="nav-links" id="nav-links" aria-label="Primary">
+      <a href="#categories">Categories</a>
+      <a href="#features">Platform</a>
+      <a href="#how">How it works</a>
+      <a href="#contact">Contact</a>
+    </nav>
+
+    <div class="nav-actions">
+      <button class="power-toggle" id="power-toggle" type="button" aria-pressed="false" title="Disable 3D graphics">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3v9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M6.5 6.8a8 8 0 1 0 11 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <span>Low power</span>
+      </button>
+
+      <button class="btn btn-primary btn-sm" id="nav-signin" type="button" data-open-modal="school-admin">Sign in</button>
+
+      <button class="btn btn-ghost btn-sm" id="nav-signout" type="button" hidden>Sign out</button>
+
+      <button class="nav-burger" id="nav-burger" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Open menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero" id="home">
+    <canvas id="hero-canvas" aria-hidden="true"></canvas>
+
+    <div class="hero-fallback" id="hero-fallback" aria-hidden="true">
+      <svg viewBox="0 0 400 400" class="fallback-globe">
+        <defs>
+          <radialGradient id="gGlow" cx="50%" cy="45%" r="55%">
+            <stop offset="0%" stop-color="var(--accent)" stop-opacity=".25"/>
+            <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <circle cx="200" cy="200" r="150" fill="url(#gGlow)"/>
+        <circle cx="200" cy="200" r="118" fill="none" stroke="var(--accent)" stroke-width="1.2" opacity=".5"/>
+        <ellipse cx="200" cy="200" rx="46" ry="118" fill="none" stroke="var(--accent)" stroke-width="1.1" opacity=".4"/>
+        <ellipse cx="200" cy="200" rx="86" ry="118" fill="none" stroke="var(--accent)" stroke-width="1.1" opacity=".28"/>
+        <path d="M82 200h236M96 150h208M96 250h208" stroke="var(--accent)" stroke-width="1.1" opacity=".35"/>
+        <g fill="var(--accent)">
+          <circle cx="200" cy="200" r="5"/>
+          <circle cx="160" cy="150" r="3.5" opacity=".85"/>
+          <circle cx="250" cy="170" r="3.5" opacity=".85"/>
+          <circle cx="175" cy="255" r="3.5" opacity=".7"/>
+          <circle cx="262" cy="240" r="3.5" opacity=".7"/>
+          <circle cx="130" cy="215" r="3" opacity=".6"/>
+        </g>
+      </svg>
+    </div>
+
+    <div class="hero-scrim" aria-hidden="true"></div>
+
+    <div class="container hero-inner">
+      <p class="eyebrow"><span class="pulse-dot"></span> Built for African schools</p>
+      <h1>Connecting Schools.<br /><span class="grad">Empowering Education.</span></h1>
+      <p class="lede">
+        One secure, integrated platform for school administrators, teachers, parents and
+        students — replacing fragmented paper records with real-time digital clarity.
+      </p>
+
+      <div class="hero-actions">
+        <button class="btn btn-primary" type="button" data-open-modal="school-admin">Get started</button>
+        <a class="btn btn-ghost" href="#categories">Explore categories</a>
+      </div>
+
+      <ul class="hero-badges">
+        <li>Multi-school isolation</li>
+        <li>Phone OTP for teachers</li>
+        <li>Low-bandwidth ready</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ STATS ============ -->
+  <section class="stats" aria-label="Platform at a glance">
+    <div class="container stats-grid">
+      <div class="stat"><strong>5</strong><span>Role-based portals</span></div>
+      <div class="stat"><strong>1</strong><span>Isolated workspace per school</span></div>
+      <div class="stat"><strong>0</strong><span>Paper forms to chase</span></div>
+      <div class="stat"><strong>24/7</strong><span>Access on any device</span></div>
+    </div>
+  </section>
+
+  <!-- ============ CATEGORIES (theme changer) ============ -->
+  <section class="section" id="categories">
+    <div class="container">
+      <header class="section-head">
+        <p class="eyebrow">Categories</p>
+        <h2>Pick your category. The whole site re-skins.</h2>
+        <p class="section-sub">
+          Each portal has its own colour language — select one below and the entire page,
+          buttons, hero and 3D globe accent update instantly.
+        </p>
+      </header>
+
+      <div class="cat-grid" id="cat-grid">
+        <button class="cat-tile" type="button" data-theme="super-admin" aria-pressed="false">
+          <span class="cat-dot"></span>
+          <h3>Super Admin</h3>
+          <p>Platform governance, school approvals, subscription metrics.</p>
+          <span class="cat-cta">Select category →</span>
+        </button>
+
+        <button class="cat-tile" type="button" data-theme="school-admin" aria-pressed="true">
+          <span class="cat-dot"></span>
+          <h3>School Admin</h3>
+          <p>Branding, students, teachers, classes, CPD, reports.</p>
+          <span class="cat-cta">Select category →</span>
+        </button>
+
+        <button class="cat-tile" type="button" data-theme="teacher" aria-pressed="false">
+          <span class="cat-dot"></span>
+          <h3>Teacher</h3>
+          <p>Phone-OTP sign in, lesson plans, marks, attendance, CPD.</p>
+          <span class="cat-cta">Select category →</span>
+        </button>
+
+        <button class="cat-tile" type="button" data-theme="parent" aria-pressed="false">
+          <span class="cat-dot"></span>
+          <h3>Parent</h3>
+          <p>Read-only results, subject averages, rankings, announcements.</p>
+          <span class="cat-cta">Select category →</span>
+        </button>
+
+        <button class="cat-tile" type="button" data-theme="student" aria-pressed="false">
+          <span class="cat-dot"></span>
+          <h3>Student</h3>
+          <p>Personal results, assignments, digital learning resources.</p>
+          <span class="cat-cta">Select category →</span>
+        </button>
+      </div>
+
+      <div class="cat-actions">
+        <button class="btn btn-primary" id="cat-continue" type="button">Continue to sign in</button>
       </div>
     </div>
-    <h2>Welcome back</h2>
-    <p class="muted">Sign in with your teacher or administrator account.</p>
-    <form id="login-form">
-      <label for="login-email">Email address</label>
-      <input id="login-email" type="email" required autocomplete="username">
-      <label for="login-password">Password</label>
-      <input id="login-password" type="password" required autocomplete="current-password">
-      <button type="submit" class="btn">Sign in</button>
-      <p id="login-message" role="status" aria-live="polite"></p>
+  </section>
+
+  <!-- ============ DASHBOARD (shown after login) ============ -->
+  <section class="section section-dash" id="dashboard" hidden>
+    <div class="container">
+      <header class="section-head dash-head">
+        <p class="eyebrow" id="dash-role-label">Portal</p>
+        <h2>Welcome, <span id="dash-name">…</span></h2>
+        <p class="section-sub" id="dash-sub">Loading your workspace from Firestore…</p>
+      </header>
+
+      <div class="dash-grid" id="dash-grid">
+        <!-- Populated by script.js -->
+      </div>
+
+      <div class="dash-note" id="dash-note"></div>
+    </div>
+  </section>
+
+  <!-- ============ FEATURES ============ -->
+  <section class="section section-alt" id="features">
+    <div class="container">
+      <header class="section-head">
+        <p class="eyebrow">Platform</p>
+        <h2>Built for real schools, not demo schools.</h2>
+      </header>
+
+      <div class="cards-grid cards-grid-3">
+        <article class="feature-card">
+          <h3>Strict multi-tenant isolation</h3>
+          <p>School A can never read or write School B's records. Every document lives under a <code>schoolId</code> scope enforced by security rules.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Automatic academic engine</h3>
+          <p>Enter subject marks once — totals, subject averages, overall term averages and class rankings calculate themselves.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Phone OTP for teachers</h3>
+          <p>Teachers sign in with a phone number and SMS code. No forgotten email passwords on a shared staffroom computer.</p>
+        </article>
+        <article class="feature-card">
+          <h3>CPD &amp; attendance tracking</h3>
+          <p>Schedule workshops and staff meetings, let teachers check in, and generate participation reports over time.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Parent read-only by design</h3>
+          <p>Parents can view results but never export, print or download a report card — blocked in the interface and the database rules.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Frugal on bandwidth</h3>
+          <p>Mobile-first layouts, system fonts, and a one-tap low-power mode that drops 3D graphics on older smartphones.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HOW ============ -->
+  <section class="section" id="how">
+    <div class="container">
+      <header class="section-head">
+        <p class="eyebrow">How it works</p>
+        <h2>Live in three steps.</h2>
+      </header>
+
+      <ol class="steps">
+        <li>
+          <span class="step-num">01</span>
+          <h3>Register your school</h3>
+          <p>Submit your school profile. The platform administrator approves it and creates your isolated workspace.</p>
+        </li>
+        <li>
+          <span class="step-num">02</span>
+          <h3>Set up classes &amp; staff</h3>
+          <p>Add academic years and terms, create classes and subjects, register teachers and students, and assign teaching loads.</p>
+        </li>
+        <li>
+          <span class="step-num">03</span>
+          <h3>Start recording</h3>
+          <p>Teachers enter marks and attendance, parents and students see results instantly, admins watch the reports build themselves.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ CTA ============ -->
+  <section class="cta-band" id="contact">
+    <div class="container cta-inner">
+      <div>
+        <h2>Building a connected future for African education.</h2>
+        <p>Bring your school onto EduConnect and retire the paper register.</p>
+      </div>
+      <button class="btn btn-primary btn-lg" type="button" data-open-modal="school-admin">Request access</button>
+    </div>
+  </section>
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="footer">
+  <div class="container footer-grid">
+    <div class="footer-brand">
+      <a href="#home" class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.6" opacity=".45"/>
+            <ellipse cx="16" cy="16" rx="6" ry="14" stroke="currentColor" stroke-width="1.4" opacity=".7"/>
+            <path d="M2 16h28" stroke="currentColor" stroke-width="1.4" opacity=".55"/>
+            <circle cx="16" cy="16" r="2.6" fill="currentColor"/>
+          </svg>
+        </span>
+        <span class="brand-text">Edu<span>Connect</span></span>
+      </a>
+      <p>Connecting Schools. Empowering Education.<br />Building a connected future for African education.</p>
+      <p class="footer-status" id="firebase-status">Firebase: checking…</p>
+    </div>
+
+    <nav class="footer-col" aria-label="Product">
+      <h4>Product</h4>
+      <a href="#categories">Categories</a>
+      <a href="#features">Platform</a>
+      <a href="#how">How it works</a>
+    </nav>
+
+    <nav class="footer-col" aria-label="Company">
+      <h4>Company</h4>
+      <a href="#contact">Contact</a>
+      <a href="#contact">Request access</a>
+      <a href="#home">Support</a>
+    </nav>
+
+    <nav class="footer-col" aria-label="Legal">
+      <h4>Legal</h4>
+      <a href="#home">Privacy</a>
+      <a href="#home">Terms</a>
+      <a href="#home">Data protection</a>
+    </nav>
+  </div>
+
+  <div class="container footer-bottom">
+    <p>&copy; <span id="year">2025</span> EduConnect. All rights reserved.</p>
+    <p>Kigali, Rwanda</p>
+  </div>
+</footer>
+
+<!-- ============ AUTH MODAL ============ -->
+<div class="modal" id="login-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+  <div class="modal-backdrop" data-close-modal></div>
+
+  <div class="modal-panel" role="document">
+    <button class="modal-close" type="button" data-close-modal aria-label="Close dialog">&times;</button>
+
+    <h2 id="modal-title">Sign in to EduConnect</h2>
+    <p class="modal-sub" id="modal-sub">Choose your portal to continue.</p>
+
+    <div class="role-tabs" role="tablist" aria-label="Select portal">
+      <button class="role-tab" type="button" role="tab" data-role="super-admin" aria-selected="false">Super Admin</button>
+      <button class="role-tab" type="button" role="tab" data-role="school-admin" aria-selected="true">School Admin</button>
+      <button class="role-tab" type="button" role="tab" data-role="teacher" aria-selected="false">Teacher</button>
+      <button class="role-tab" type="button" role="tab" data-role="parent" aria-selected="false">Parent</button>
+      <button class="role-tab" type="button" role="tab" data-role="student" aria-selected="false">Student</button>
+    </div>
+
+    <!-- Step 1: credentials -->
+    <form id="login-form" novalidate>
+      <div class="field" id="field-email">
+        <label for="login-email">Email address</label>
+        <input id="login-email" name="email" type="email" autocomplete="email" placeholder="you@school.rw" />
+      </div>
+
+      <div class="field" id="field-phone" hidden>
+        <label for="login-phone">Phone number</label>
+        <input id="login-phone" name="phone" type="tel" autocomplete="tel" placeholder="+250 7XX XXX XXX" inputmode="tel" />
+        <small class="hint">We'll send a one-time SMS code. Include the country code, e.g. +250…</small>
+      </div>
+
+      <div class="field" id="field-password">
+        <label for="login-password">Password</label>
+        <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="••••••••" />
+      </div>
+
+      <button class="btn btn-primary btn-block" type="submit" id="login-submit">Continue</button>
+      <p class="form-note" id="form-note" role="status" aria-live="polite"></p>
     </form>
+
+    <!-- Step 2: OTP (teacher only) -->
+    <form id="otp-form" hidden novalidate>
+      <div class="field">
+        <label for="otp-code">Enter the 6-digit SMS code</label>
+        <input id="otp-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" />
+      </div>
+      <button class="btn btn-primary btn-block" type="submit" id="otp-submit">Verify &amp; sign in</button>
+      <button class="btn btn-ghost btn-block" type="button" id="otp-back">Use a different number</button>
+      <p class="form-note" id="otp-note" role="status" aria-live="polite"></p>
+    </form>
+
+    <!-- Invisible reCAPTCHA container required by Firebase phone auth -->
+    <div id="recaptcha-container"></div>
   </div>
 </div>
 
-<!-- ================= APP ================= -->
-<div id="app" style="display:none">
-  <aside>
-    <div class="brand">
-      <div class="logo">SR</div>
-      <div><strong>School Results</strong><small>Management Portal</small></div>
-    </div>
-    <div>
-      <div class="nav-label">Workspace</div>
-      <nav class="nav" id="nav">
-        <button class="active" data-page="overview"><span>▦</span>Overview</button>
-        <button data-page="students"><span>♙</span>Students</button>
-        <button data-page="marks"><span>✎</span>Enter marks</button>
-        <button data-page="results"><span>▤</span>Results</button>
-        <button data-page="teachers"><span>♧</span>Teachers</button>
-        <button data-page="settings"><span>⚙</span>Settings</button>
-      </nav>
-    </div>
-    <div class="sidebar-note">
-      <strong id="sidebar-role">—</strong><br>
-      <span id="sidebar-school">—</span>
-    </div>
-    <button id="sign-out" class="btn secondary" style="margin-top:12px">Sign out</button>
-  </aside>
-
-  <main>
-    <header class="topbar">
-      <div>
-        <div class="eyebrow">School administration / academics</div>
-        <h1 id="page-title">Overview</h1>
-      </div>
-      <div class="user-area">
-        <div class="avatar" id="avatar">--</div>
-        <div>
-          <strong id="user-name">—</strong>
-          <small id="user-sub">—</small>
-        </div>
-      </div>
-    </header>
-
-    <!-- OVERVIEW -->
-    <section id="overview-page" class="page">
-      <div class="welcome">
-        <div>
-          <h2 id="welcome-title">Good afternoon 👋</h2>
-          <p>Here is your school results snapshot.</p>
-        </div>
-        <div class="pill">Term 1 · 2026</div>
-      </div>
-      <div class="stats" id="stats"></div>
-      <div class="section-grid">
-        <section class="panel">
-          <div class="panel-head">
-            <div><h3 id="table-title">Recent results</h3>
-            <div class="muted" style="margin-top:5px">Latest activity across classes</div></div>
-            <button class="btn secondary" id="view-all">View all</button>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Student</th><th>Class</th><th>Subject</th><th>Score</th><th>Status</th></tr></thead>
-              <tbody id="recent-body"></tbody>
-            </table>
-          </div>
-        </section>
-        <section class="panel">
-          <div class="panel-head"><h3>Recent activity</h3><span class="muted">This week</span></div>
-          <div class="activity" id="activity"></div>
-        </section>
-      </div>
-    </section>
-
-    <!-- STUDENTS -->
-    <section id="students-page" class="page hidden">
-      <section class="panel">
-        <div class="panel-head">
-          <div><h3>Student register</h3>
-          <div class="muted" style="margin-top:5px">Manage student records</div></div>
-          <button class="btn" id="add-student">+ Add student</button>
-        </div>
-        <div id="student-form" class="hidden">
-          <div class="form-grid">
-            <label class="field">Student full name<input id="new-name" placeholder="e.g. Aline Uwase"></label>
-            <label class="field">Class<select id="new-class">
-              <option>P5</option><option>P6</option><option>S1</option>
-              <option>S2</option><option>S3</option><option>S4</option>
-            </select></label>
-          </div>
-          <button class="btn" id="save-student">Save student</button>
-          <button class="btn secondary" id="cancel-student">Cancel</button>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Student ID</th><th>Name</th><th>Class</th><th>Average</th></tr></thead>
-            <tbody id="students-body"></tbody>
-          </table>
-        </div>
-      </section>
-    </section>
-
-    <!-- MARKS -->
-    <section id="marks-page" class="page hidden">
-      <section class="panel">
-        <div class="panel-head">
-          <div><h3>Enter student marks</h3>
-          <div class="muted" style="margin-top:5px">Choose a class and subject, then enter scores out of 100</div></div>
-          <span class="status review" id="marks-state">Draft</span>
-        </div>
-        <div class="form-grid">
-          <label class="field">Class<select id="marks-class">
-            <option>P5</option><option>P6</option><option>S1</option><option>S2</option>
-          </select></label>
-          <label class="field">Subject<select id="marks-subject">
-            <option>English</option><option>Mathematics</option>
-            <option>Social Studies</option><option>Science</option>
-          </select></label>
-          <label class="field">Assessment<select id="assessment">
-            <option>End of term</option><option>Mid-term</option>
-            <option>Class test</option><option>Homework</option>
-          </select></label>
-          <label class="field">Academic term<select id="marks-term">
-            <option>Term 1 · 2026</option><option>Term 2 · 2026</option><option>Term 3 · 2026</option>
-          </select></label>
-        </div>
-        <div class="table-wrap">
-          <table class="marks-table">
-            <thead><tr><th>Student</th><th>Score / 100</th><th>Grade</th></tr></thead>
-            <tbody id="marks-body"></tbody>
-          </table>
-        </div>
-        <div style="display:flex;justify-content:flex-end;gap:9px;margin-top:17px">
-          <button class="btn secondary" id="save-draft">Save draft</button>
-          <button class="btn green" id="submit-marks">Submit for review</button>
-        </div>
-        <p class="muted" id="marks-message" aria-live="polite"></p>
-      </section>
-    </section>
-
-    <!-- RESULTS -->
-    <section id="results-page" class="page hidden">
-      <section class="panel">
-        <div class="panel-head">
-          <div><h3>Results and reports</h3>
-          <div class="muted" style="margin-top:5px">Approve submitted marks and download reports</div></div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn secondary" id="download-results">Download (CSV)</button>
-            <button class="btn secondary" id="print-results">Print</button>
-          </div>
-        </div>
-        <div class="notice" id="results-notice">Review marks submitted by teachers.</div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr>
-              <th>Student</th><th>Class</th><th>Subject</th><th>Score</th>
-              <th>Grade</th><th>Status</th><th>Correction reason</th>
-            </tr></thead>
-            <tbody id="results-body"></tbody>
-          </table>
-        </div>
-      </section>
-    </section>
-
-    <!-- TEACHERS -->
-    <section id="teachers-page" class="page hidden">
-      <section class="panel">
-        <div class="panel-head">
-          <div><h3>Teacher directory</h3>
-          <div class="muted" style="margin-top:5px">Teaching staff and assignments</div></div>
-          <button class="btn" id="add-teacher">+ Add teacher</button>
-        </div>
-        <div id="teacher-form" class="hidden">
-          <div class="form-grid">
-            <label class="field">Teacher name<input id="teacher-name" placeholder="Teacher full name"></label>
-            <label class="field">Subject<input id="teacher-subject" placeholder="e.g. English"></label>
-          </div>
-          <button class="btn" id="save-teacher">Save teacher</button>
-          <button class="btn secondary" id="cancel-teacher">Cancel</button>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Teacher</th><th>Subject</th><th>Assigned classes</th><th>Status</th></tr></thead>
-            <tbody id="teachers-body"></tbody>
-          </table>
-        </div>
-      </section>
-    </section>
-
-    <!-- SETTINGS -->
-    <section id="settings-page" class="page hidden">
-      <section class="panel">
-        <h3>School settings</h3>
-        <p class="muted">Basic information stored in Firestore.</p>
-        <div class="form-grid">
-          <label class="field">School name<input id="school-name" value="Green Hills School"></label>
-          <label class="field">Academic year<select id="academic-year">
-            <option>2026</option><option>2027</option>
-          </select></label>
-          <label class="field">Current term<select id="current-term">
-            <option>Term 1</option><option>Term 2</option><option>Term 3</option>
-          </select></label>
-          <label class="field">Passing mark (%)<input type="number" id="pass-mark" value="50" min="0" max="100"></label>
-        </div>
-        <button class="btn" id="save-settings">Save settings</button>
-        <p class="muted" id="settings-message" aria-live="polite"></p>
-      </section>
-    </section>
-
-    <div class="footer">School Results Management · Firebase-backed</div>
-  </main>
-</div>
-
+<!-- ============ SCRIPTS ============ -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
+  }
+}
+</script>
 <script type="module" src="script.js"></script>
 </body>
 </html>

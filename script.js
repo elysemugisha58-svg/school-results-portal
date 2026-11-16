@@ -10,10 +10,6 @@ import {
   getFirestore, doc, getDoc, getDocs, addDoc, updateDoc, setDoc,
   collection, onSnapshot, query, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-// ---------------------------------------------------------------
-// 🔥 1. PASTE YOUR FIREBASE CONFIG HERE
-// ---------------------------------------------------------------// 
 const firebaseConfig = {
   apiKey: "AIzaSyBCcWkAzjh9FLpphYIdpLNcDQRhVK5FKcM",
   authDomain: "educonnect-5885b.firebaseapp.com",

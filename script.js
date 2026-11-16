@@ -24,13 +24,16 @@ import * as THREE from "three";
 /* ---------------------------------------------------------
    1. FIREBASE CONFIG  — REPLACE WITH YOUR OWN VALUES
    --------------------------------------------------------- */
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey:            "PASTE_YOUR_API_KEY",
-  authDomain:        "PASTE_YOUR_PROJECT.firebaseapp.com",
-  projectId:         "PASTE_YOUR_PROJECT_ID",
-  storageBucket:     "PASTE_YOUR_PROJECT.appspot.com",
-  messagingSenderId: "PASTE_YOUR_SENDER_ID",
-  appId:             "PASTE_YOUR_APP_ID"
+  apiKey: "AIzaSyBCcWkAzjh9FLpphYIdpLNcDQRhVK5FKcM",
+  authDomain: "educonnect-5885b.firebaseapp.com",
+  projectId: "educonnect-5885b",
+  storageBucket: "educonnect-5885b.firebasestorage.app",
+  messagingSenderId: "814892024989",
+  appId: "1:814892024989:web:3be333f2078732aa02c074",
+  measurementId: "G-GKQ1WWG2PQ"
+};
 };
 
 let app = null, auth = null, db = null, firebaseReady = false;

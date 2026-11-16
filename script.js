@@ -1,15 +1,21 @@
-// ===================================================================
-// School Results Portal — single-file app (Firebase + Three.js)
-// ===================================================================
+import { initializeApp } from "firebase/app";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  signInWithPhoneNumber,
+  RecaptchaVerifier,
+  onAuthStateChanged,
+  signOut
+} from "firebase/auth";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  collection,
+  getCountFromServer
+} from "firebase/firestore";
 import * as THREE from "three";
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import {
-  getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import {
-  getFirestore, doc, getDoc, getDocs, addDoc, updateDoc, setDoc,
-  collection, onSnapshot, query, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyBCcWkAzjh9FLpphYIdpLNcDQRhVK5FKcM",
   authDomain: "educonnect-5885b.firebaseapp.com",
@@ -20,466 +26,602 @@ const firebaseConfig = {
   measurementId: "G-GKQ1WWG2PQ"
 };
 
-const fbApp  = initializeApp(firebaseConfig);
-const auth   = getAuth(fbApp);
-const db     = getFirestore(fbApp);
+let app = null, auth = null, db = null, firebaseReady = false;
+const statusEl = document.getElementById("firebase-status");
 
-// ---------------------------------------------------------------
-// 🌐 2. THREE.JS BACKGROUND
-// ---------------------------------------------------------------
-(function initThree(){
-  const canvas = document.getElementById("bg-canvas");
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(innerWidth, innerHeight);
+try {
+  app  = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db   = getFirestore(app);
+  firebaseReady = true;
+  if (statusEl) statusEl.textContent = "Firebase: connected ✓";
+} catch (err) {
+  console.error("Firebase init failed:", err);
+  if (statusEl) {
+    statusEl.textContent = "Firebase: add your config in script.js";
+    statusEl.style.color = "#ff7a7a";
+  }
+}
 
-  const scene  = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 100);
-  camera.position.z = 8;
-
-  const ico = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(2.4, 1),
-    new THREE.MeshBasicMaterial({ color:0x2563eb, wireframe:true, transparent:true, opacity:0.14 })
-  );
-  scene.add(ico);
-
-  const ico2 = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(3.6, 0),
-    new THREE.MeshBasicMaterial({ color:0x0f766e, wireframe:true, transparent:true, opacity:0.07 })
-  );
-  ico2.position.set(-3, 1.5, -2);
-  scene.add(ico2);
-
-  const COUNT = 900;
-  const positions = new Float32Array(COUNT * 3);
-  for (let i = 0; i < COUNT * 3; i++) positions[i] = (Math.random() - 0.5) * 22;
-  const pGeo = new THREE.BufferGeometry();
-  pGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  const points = new THREE.Points(pGeo, new THREE.PointsMaterial({
-    color:0x93c5fd, size:0.045, transparent:true, opacity:0.9, depthWrite:false
-  }));
-  scene.add(points);
-
-  let tx = 0, ty = 0;
-  addEventListener("pointermove", e => {
-    tx = (e.clientX / innerWidth  - 0.5) * 0.6;
-    ty = (e.clientY / innerHeight - 0.5) * 0.6;
-  });
-
-  const clock = new THREE.Clock();
-  (function tick(){
-    const t = clock.getElapsedTime();
-    ico.rotation.x = t * 0.08; ico.rotation.y = t * 0.11;
-    ico2.rotation.x = -t * 0.05; ico2.rotation.y = -t * 0.07;
-    points.rotation.y = t * 0.02;
-    camera.position.x += (tx - camera.position.x) * 0.04;
-    camera.position.y += (-ty - camera.position.y) * 0.04;
-    camera.lookAt(scene.position);
-    renderer.render(scene, camera);
-    requestAnimationFrame(tick);
-  })();
-
-  addEventListener("resize", () => {
-    camera.aspect = innerWidth / innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth, innerHeight);
-  });
-})();
-
-// ---------------------------------------------------------------
-// 🧠 3. APP STATE
-// ---------------------------------------------------------------
-const state = {
-  user:null, profile:null, schoolId:null, role:"admin",
-  students:[], teachers:[], results:[], settings:{},
-  currentPage:"overview", unsub:null
+/* ---------------------------------------------------------
+   2. THEME / CATEGORY MANAGER
+   --------------------------------------------------------- */
+const THEMES = ["super-admin", "school-admin", "teacher", "parent", "student"];
+const ROLE_LABELS = {
+  "super-admin":  "Platform Super Administrator",
+  "school-admin": "School Administrator",
+  "teacher":      "Teacher",
+  "parent":       "Parent",
+  "student":      "Student"
 };
 
-const $   = id => document.getElementById(id);
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c =>
-  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const grade = n => n>=80?'A':n>=70?'B':n>=60?'C':n>=50?'D':'E';
-const statusClass = s =>
-  s==='Approved' ? 'done' :
-  s==='Pending review' ? 'pending' : 'review';
+let currentRole = "school-admin";
 
-// ---------------------------------------------------------------
-// 🔐 4. AUTH
-// ---------------------------------------------------------------
-$("login-form").addEventListener("submit", async (e) => {
+function applyTheme(role) {
+  if (!THEMES.includes(role)) return;
+  currentRole = role;
+  document.body.dataset.theme = role;
+
+  document.querySelectorAll(".cat-tile").forEach(t => {
+    t.setAttribute("aria-pressed", String(t.dataset.theme === role));
+  });
+  document.querySelectorAll(".role-tab").forEach(t => {
+    t.setAttribute("aria-selected", String(t.dataset.role === role));
+  });
+
+  updateAuthFields(role);
+  if (globe) updateGlobeAccent();
+}
+
+document.querySelectorAll(".cat-tile").forEach(tile => {
+  tile.addEventListener("click", () => applyTheme(tile.dataset.theme));
+});
+
+document.getElementById("cat-continue")?.addEventListener("click", () => {
+  openModal(currentRole);
+});
+
+/* ---------------------------------------------------------
+   3. NAV / BURGER / YEAR
+   --------------------------------------------------------- */
+const burger = document.getElementById("nav-burger");
+const navLinks = document.getElementById("nav-links");
+burger?.addEventListener("click", () => {
+  const open = navLinks.classList.toggle("open");
+  burger.setAttribute("aria-expanded", String(open));
+});
+navLinks?.querySelectorAll("a").forEach(a => {
+  a.addEventListener("click", () => {
+    navLinks.classList.remove("open");
+    burger?.setAttribute("aria-expanded", "false");
+  });
+});
+
+const yearEl = document.getElementById("year");
+if (yearEl) yearEl.textContent = String(new Date().getFullYear());
+
+/* ---------------------------------------------------------
+   4. AUTH MODAL
+   --------------------------------------------------------- */
+const modal      = document.getElementById("login-modal");
+const modalSub   = document.getElementById("modal-sub");
+const loginForm  = document.getElementById("login-form");
+const otpForm    = document.getElementById("otp-form");
+const formNote   = document.getElementById("form-note");
+const otpNote    = document.getElementById("otp-note");
+const emailField = document.getElementById("field-email");
+const phoneField = document.getElementById("field-phone");
+const passField  = document.getElementById("field-password");
+const submitBtn  = document.getElementById("login-submit");
+
+let lastFocused = null;
+let confirmationResult = null;
+
+function openModal(role) {
+  if (!modal) return;
+  applyTheme(role);
+  lastFocused = document.activeElement;
+  modal.hidden = false;
+  document.body.classList.add("modal-open");
+  resetForms();
+  updateAuthFields(role);
+  document.getElementById("login-email")?.focus();
+}
+
+function closeModal() {
+  if (!modal) return;
+  modal.hidden = true;
+  document.body.classList.remove("modal-open");
+  lastFocused?.focus?.();
+}
+
+function resetForms() {
+  loginForm?.reset();
+  otpForm?.reset();
+  if (loginForm) loginForm.hidden = false;
+  if (otpForm)   otpForm.hidden = true;
+  if (formNote) { formNote.textContent = ""; formNote.className = "form-note"; }
+  if (otpNote)  { otpNote.textContent = "";  otpNote.className  = "form-note"; }
+  confirmationResult = null;
+}
+
+function updateAuthFields(role) {
+  const isTeacher = role === "teacher";
+  if (emailField) emailField.hidden = isTeacher;
+  if (passField)  passField.hidden  = isTeacher;
+  if (phoneField) phoneField.hidden = !isTeacher;
+  if (submitBtn)  submitBtn.textContent = isTeacher ? "Send SMS code" : "Sign in";
+  if (modalSub)   modalSub.textContent = isTeacher
+    ? "Teachers sign in with a phone number and SMS code."
+    : `Signing in as ${ROLE_LABELS[role]}.`;
+}
+
+document.querySelectorAll("[data-open-modal]").forEach(btn => {
+  btn.addEventListener("click", () => openModal(btn.dataset.openModal));
+});
+document.querySelectorAll("[data-close-modal]").forEach(btn => {
+  btn.addEventListener("click", closeModal);
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && modal && !modal.hidden) closeModal();
+});
+
+document.querySelectorAll(".role-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    resetForms();
+    applyTheme(tab.dataset.role);
+  });
+});
+
+/* ---------------------------------------------------------
+   5. SIGN IN — EMAIL / PASSWORD
+   --------------------------------------------------------- */
+loginForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const msg = $("login-message");
-  const btn = e.target.querySelector("button[type=submit]");
-  msg.textContent = "Signing in...";
-  btn.disabled = true;
+  if (!firebaseReady) return note(formNote, "Add your Firebase config in script.js first.", "error");
+
+  if (currentRole === "teacher") {
+    return startPhoneSignIn();
+  }
+
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+
+  if (!email || !password) return note(formNote, "Enter your email and password.", "error");
+
+  submitBtn.disabled = true;
+  note(formNote, "Signing in…");
+
   try {
-    await signInWithEmailAndPassword(auth, $("login-email").value.trim(), $("login-password").value);
+    await signInWithEmailAndPassword(auth, email, password);
+    note(formNote, "Signed in. Loading your workspace…", "ok");
+    closeModal();
   } catch (err) {
-    msg.textContent = err.message;
+    note(formNote, friendlyAuthError(err), "error");
   } finally {
-    btn.disabled = false;
+    submitBtn.disabled = false;
   }
 });
 
-$("sign-out").addEventListener("click", () => signOut(auth));
-
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    if (state.unsub) { state.unsub(); state.unsub = null; }
-    $("login-screen").style.display = "grid";
-    $("app").style.display = "none";
-    return;
+/* ---------------------------------------------------------
+   6. SIGN IN — PHONE OTP (TEACHERS)
+   --------------------------------------------------------- */
+async function startPhoneSignIn() {
+  const phone = document.getElementById("login-phone").value.trim();
+  if (!/^\+\d{8,15}$/.test(phone.replace(/\s+/g, ""))) {
+    return note(formNote, "Enter the phone number with country code, e.g. +250788123456.", "error");
   }
+
+  submitBtn.disabled = true;
+  note(formNote, "Sending SMS code…");
+
   try {
-    const snap = await getDoc(doc(db, "profiles", user.uid));
-    if (!snap.exists()) throw new Error("No profile found. Contact admin.");
-    const profile = snap.data();
-    if (!["admin","teacher"].includes(profile.role)) throw new Error("Invalid role.");
-    state.user = user;
-    state.profile = profile;
-    state.schoolId = profile.school_id || user.uid;
-    state.role = profile.role;
-    await boot();
-  } catch (err) {
-    $("login-message").textContent = err.message;
-    await signOut(auth);
-  }
-});
-
-// ---------------------------------------------------------------
-// 🚀 5. BOOT
-// ---------------------------------------------------------------
-async function boot() {
-  $("login-screen").style.display = "none";
-  $("app").style.display = "grid";
-
-  const name = state.profile.full_name || state.user.email;
-  $("user-name").textContent   = name;
-  $("user-sub").textContent    = state.role === "admin" ? "School management" : "Teacher";
-  $("avatar").textContent      = name.split(" ").map(x=>x[0]).join("").slice(0,2).toUpperCase();
-  $("sidebar-role").textContent   = state.role === "admin" ? "Administrator" : "Teacher";
-  $("sidebar-school").textContent = state.schoolId;
-  $("welcome-title").textContent  = state.role === "admin"
-    ? "Good afternoon, Administrator 👋"
-    : "Welcome back, Teacher 👋";
-
-  // hide role-specific nav
-  document.querySelectorAll("#nav button").forEach(b => {
-    const adminOnly   = ["teachers","settings"].includes(b.dataset.page);
-    const teacherOnly = ["marks"].includes(b.dataset.page);
-    if (state.role === "teacher" && adminOnly)   b.classList.add("hidden");
-    if (state.role === "admin"   && teacherOnly) b.classList.add("hidden");
-  });
-
-  await loadAll();
-  subscribeLive();
-  showPage("overview");
-}
-
-async function loadAll() {
-  const schoolRef = doc(db, "schools", state.schoolId);
-  const sSnap = await getDoc(schoolRef);
-  state.settings = sSnap.exists() ? sSnap.data()
-    : { name:"Green Hills School", pass_mark:50 };
-
-  const [studs, teachs, ress] = await Promise.all([
-    getDocs(collection(schoolRef, "students")),
-    getDocs(collection(schoolRef, "teachers")),
-    getDocs(collection(schoolRef, "results"))
-  ]);
-  state.students = studs.docs.map(d => ({ _id:d.id, ...d.data() }));
-  state.teachers = teachs.docs.map(d => ({ _id:d.id, ...d.data() }));
-  state.results  = ress.docs.map(d => ({ _id:d.id, ...d.data() }));
-  renderAll();
-}
-
-function subscribeLive() {
-  if (state.unsub) state.unsub();
-  const schoolRef = doc(db, "schools", state.schoolId);
-  state.unsub = onSnapshot(collection(schoolRef, "results"), snap => {
-    state.results = snap.docs.map(d => ({ _id:d.id, ...d.data() }));
-    renderAll();
-  });
-}
-
-// ---------------------------------------------------------------
-// 🎨 6. RENDERERS
-// ---------------------------------------------------------------
-function renderStats() {
-  const isAdmin = state.role === "admin";
-  const pending = state.results.filter(r => r.status === "Pending review").length;
-  const cards = isAdmin
-    ? [["Students", state.students.length, "Registered learners", "♙"],
-       ["Teachers", state.teachers.length, "Teaching staff", "♧"],
-       ["Results", state.results.length, "Score records", "▤"],
-       ["Awaiting review", pending, "Need admin review", "◷"]]
-    : [["My classes", 2, "Assigned classes", "▦"],
-       ["My students", state.students.length, "In my classes", "♙"],
-       ["Marks entered", state.results.length, "Score records", "✎"],
-       ["Submitted", pending, "Awaiting review", "◷"]];
-  $("stats").innerHTML = cards.map(d => `
-    <div class="stat">
-      <div class="stat-top"><span>${d[0]}</span><span class="stat-icon">${d[3]}</span></div>
-      <strong>${d[1]}</strong><small>${d[2]}</small>
-    </div>`).join("");
-}
-
-function renderRecent() {
-  const rows = state.results.slice(0, 6);
-  $("recent-body").innerHTML = rows.map(r => `
-    <tr>
-      <td><div class="student">
-        <span class="mini-avatar">${esc((r.student||"").split(" ").map(x=>x[0]).join("").slice(0,2))}</span>
-        ${esc(r.student)}
-      </div></td>
-      <td>${esc(r.cls)}</td>
-      <td>${esc(r.subject)}</td>
-      <td><strong>${r.score}%</strong></td>
-      <td><span class="status ${statusClass(r.status)}">${esc(r.status)}</span></td>
-    </tr>`).join("") || `<tr><td colspan="5">No results yet.</td></tr>`;
-}
-
-function renderActivity() {
-  const pending = state.results.filter(r => r.status === "Pending review").length;
-  const items = [
-    ["✓","Results updated","Recent marks were entered.","Today"],
-    ["◷","Review required",`${pending} result(s) awaiting approval.`,"This week"],
-    ["♙","Student register",`${state.students.length} students registered.`,"This week"],
-    ["▤","Term reports","Report printing is available.","This week"]
-  ];
-  $("activity").innerHTML = items.map(a => `
-    <div class="activity-item">
-      <div class="activity-icon">${a[0]}</div>
-      <div><strong>${a[1]}</strong><p>${a[2]}</p><p style="margin-top:4px">${a[3]}</p></div>
-    </div>`).join("");
-}
-
-function renderStudents() {
-  $("students-body").innerHTML = state.students.map(s => {
-    const rr = state.results.filter(r => r.studentId === s._id);
-    const avg = rr.length ? Math.round(rr.reduce((a,b)=>a+b.score,0)/rr.length)+"%" : "—";
-    return `<tr><td>${esc(s.id||s._id)}</td><td>${esc(s.name)}</td><td>${esc(s.cls)}</td><td>${avg}</td></tr>`;
-  }).join("");
-}
-
-function renderTeachers() {
-  $("teachers-body").innerHTML = state.teachers.map(t => `
-    <tr>
-      <td>${esc(t.name)}</td>
-      <td>${esc(t.subject)}</td>
-      <td>${esc((t.classes||[]).join(", ") || "Not assigned")}</td>
-      <td><span class="status done">Active</span></td>
-    </tr>`).join("");
-}
-
-function renderResults() {
-  $("results-body").innerHTML = state.results.map(r => `
-    <tr>
-      <td>${esc(r.student)}</td>
-      <td>${esc(r.cls)}</td>
-      <td>${esc(r.subject)}</td>
-      <td>${r.score}%</td>
-      <td><strong>${grade(r.score)}</strong></td>
-      <td>
-        <span class="status ${statusClass(r.status)}">${esc(r.status)}</span>
-        ${state.role==="admin" && r.status==="Pending review" ? `
-          <button class="btn green approve" data-id="${r._id}" style="padding:5px 8px;font-size:11px">Approve</button>
-          <button class="btn secondary return-mark" data-id="${r._id}" style="padding:5px 8px;font-size:11px">Return</button>` : ""}
-        ${state.role==="teacher" && r.status==="Returned for correction" ? `
-          <button class="btn secondary correct-mark" data-id="${r._id}" style="padding:5px 8px;font-size:11px">Correct</button>` : ""}
-      </td>
-      <td>${esc(r.returnReason || "—")}</td>
-    </tr>`).join("");
-
-  document.querySelectorAll(".approve").forEach(b =>
-    b.onclick = () => updateStatus(b.dataset.id, "Approved"));
-  document.querySelectorAll(".return-mark").forEach(b => b.onclick = () => {
-    const reason = prompt("Why are these marks being returned?");
-    if (!reason?.trim()) return alert("A reason is required.");
-    updateStatus(b.dataset.id, "Returned for correction", reason.trim());
-  });
-  document.querySelectorAll(".correct-mark").forEach(b => b.onclick = () => {
-    const r = state.results.find(x => x._id === b.dataset.id);
-    const v = prompt(`Corrected score for ${r.student} (0–100):`, r.score);
-    if (v === null) return;
-    const n = Number(v);
-    if (!Number.isFinite(n) || n < 0 || n > 100) return alert("Enter 0–100.");
-    updateDoc(doc(db, "schools", state.schoolId, "results", r._id), {
-      score: n, status: "Pending review", returnReason: "", updatedAt: serverTimestamp()
-    });
-  });
-}
-
-async function updateStatus(resultId, status, reason = "") {
-  await updateDoc(doc(db, "schools", state.schoolId, "results", resultId), {
-    status, returnReason: reason, updatedAt: serverTimestamp(), approvedBy: state.user.uid
-  });
-}
-
-// ---------------------------------------------------------------
-// 📝 7. MARKS ENTRY
-// ---------------------------------------------------------------
-function renderMarks() {
-  const cls        = $("marks-class").value;
-  const subject    = $("marks-subject").value;
-  const term       = $("marks-term").value;
-  const assessment = $("assessment").value;
-  const list = state.students.filter(s => s.cls === cls);
-
-  $("marks-body").innerHTML = list.map(s => {
-    const existing = state.results.find(r =>
-      r.studentId === s._id && r.subject === subject &&
-      r.term === term && r.assessment === assessment);
-    const val = existing?.score ?? "";
-    return `<tr>
-      <td>${esc(s.name)}</td>
-      <td><input type="number" min="0" max="100" class="score-input" data-id="${s._id}" value="${val}"></td>
-      <td class="grade-cell" data-id="${s._id}">${val===""?"—":grade(Number(val))}</td>
-    </tr>`;
-  }).join("") || `<tr><td colspan="3">No students in this class.</td></tr>`;
-
-  document.querySelectorAll(".score-input").forEach(inp => {
-    inp.addEventListener("input", () => {
-      const n = Number(inp.value);
-      const cell = document.querySelector(`.grade-cell[data-id="${inp.dataset.id}"]`);
-      cell.textContent = inp.value === "" ? "—" :
-                         (n >= 0 && n <= 100) ? grade(n) : "Invalid";
-    });
-  });
-}
-
-async function saveMarks(status) {
-  const cls        = $("marks-class").value;
-  const subject    = $("marks-subject").value;
-  const term       = $("marks-term").value;
-  const assessment = $("assessment").value;
-  let count = 0;
-
-  for (const inp of document.querySelectorAll(".score-input")) {
-    if (inp.value === "") continue;
-    const score = Number(inp.value);
-    if (!Number.isFinite(score) || score < 0 || score > 100) continue;
-
-    const s = state.students.find(x => x._id === inp.dataset.id);
-    if (!s) continue;
-
-    const existing = state.results.find(r =>
-      r.studentId === s._id && r.subject === subject &&
-      r.term === term && r.assessment === assessment);
-
-    if (existing) {
-      if (existing.status === "Approved" && status !== "Draft") continue;
-      await updateDoc(doc(db, "schools", state.schoolId, "results", existing._id), {
-        score, status, returnReason: "", updatedAt: serverTimestamp()
-      });
-    } else {
-      await addDoc(collection(db, "schools", state.schoolId, "results"), {
-        studentId: s._id, student: s.name, cls, subject,
-        term, assessment, score, status,
-        teacherId: state.user.uid, updatedAt: serverTimestamp()
-      });
+    if (!window.__recaptcha) {
+      window.__recaptcha = new RecaptchaVerifier(auth, "recaptcha-container", { size: "invisible" });
     }
-    count++;
+    confirmationResult = await signInWithPhoneNumber(auth, phone, window.__recaptcha);
+    loginForm.hidden = true;
+    otpForm.hidden = false;
+    document.getElementById("otp-code").focus();
+    note(otpNote, `Code sent to ${phone}.`);
+  } catch (err) {
+    console.error(err);
+    note(formNote, friendlyAuthError(err), "error");
+    try { window.__recaptcha?.clear(); window.__recaptcha = null; } catch {}
+  } finally {
+    submitBtn.disabled = false;
   }
-  $("marks-message").textContent =
-    `${count} score(s) ${status === "Draft" ? "saved as draft." : "submitted for review."}`;
 }
 
-// ---------------------------------------------------------------
-// ➕ 8. STUDENTS / TEACHERS / SETTINGS
-// ---------------------------------------------------------------
-$("add-student").onclick   = () => $("student-form").classList.toggle("hidden");
-$("cancel-student").onclick= () => $("student-form").classList.add("hidden");
-$("save-student").onclick  = async () => {
-  const name = $("new-name").value.trim();
-  if (!name) return $("new-name").focus();
-  await addDoc(collection(db, "schools", state.schoolId, "students"), {
-    id: "ST" + Date.now().toString().slice(-6),
-    name, cls: $("new-class").value, createdAt: serverTimestamp()
-  });
-  $("new-name").value = "";
-  $("student-form").classList.add("hidden");
-  await loadAll();
-};
+otpForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const code = document.getElementById("otp-code").value.trim();
+  if (!/^\d{6}$/.test(code)) return note(otpNote, "Enter the 6-digit code.", "error");
+  if (!confirmationResult)   return note(otpNote, "Request a new code first.", "error");
 
-$("add-teacher").onclick   = () => $("teacher-form").classList.toggle("hidden");
-$("cancel-teacher").onclick= () => $("teacher-form").classList.add("hidden");
-$("save-teacher").onclick  = async () => {
-  const name = $("teacher-name").value.trim();
-  const subject = $("teacher-subject").value.trim();
-  if (!name || !subject) return;
-  await addDoc(collection(db, "schools", state.schoolId, "teachers"), {
-    name, subject, classes: [], createdAt: serverTimestamp()
-  });
-  $("teacher-name").value = ""; $("teacher-subject").value = "";
-  $("teacher-form").classList.add("hidden");
-  await loadAll();
-};
+  document.getElementById("otp-submit").disabled = true;
+  note(otpNote, "Verifying…");
 
-$("save-settings").onclick = async () => {
-  await setDoc(doc(db, "schools", state.schoolId), {
-    name: $("school-name").value,
-    academic_year: $("academic-year").value,
-    current_term: $("current-term").value,
-    pass_mark: Number($("pass-mark").value),
-    updatedAt: serverTimestamp()
-  }, { merge: true });
-  $("settings-message").textContent = "Settings saved.";
-};
-
-// ---------------------------------------------------------------
-// 🧭 9. NAVIGATION
-// ---------------------------------------------------------------
-function showPage(page) {
-  state.currentPage = page;
-  document.querySelectorAll(".page").forEach(el => el.classList.add("hidden"));
-  $(page + "-page").classList.remove("hidden");
-  document.querySelectorAll("#nav button").forEach(b =>
-    b.classList.toggle("active", b.dataset.page === page));
-  $("page-title").textContent = ({
-    overview:"Overview", students:"Students", marks:"Enter marks",
-    results:"Results and reports", teachers:"Teachers", settings:"Settings"
-  })[page];
-  if (page === "students") renderStudents();
-  if (page === "teachers") renderTeachers();
-  if (page === "marks")    renderMarks();
-  if (page === "results")  renderResults();
-}
-$("nav").addEventListener("click", e => {
-  const b = e.target.closest("button[data-page]");
-  if (b) showPage(b.dataset.page);
+  try {
+    await confirmationResult.confirm(code);
+    note(otpNote, "Verified. Loading your workspace…", "ok");
+    closeModal();
+  } catch (err) {
+    note(otpNote, friendlyAuthError(err), "error");
+  } finally {
+    document.getElementById("otp-submit").disabled = false;
+  }
 });
-$("view-all").onclick      = () => showPage("results");
-$("marks-class").onchange  = renderMarks;
-$("marks-subject").onchange= renderMarks;
-$("marks-term").onchange   = renderMarks;
-$("assessment").onchange   = renderMarks;
-$("save-draft").onclick    = () => saveMarks("Draft");
-$("submit-marks").onclick  = () => saveMarks("Pending review");
 
-// ---------------------------------------------------------------
-// 📊 10. CSV / PRINT
-// ---------------------------------------------------------------
-$("download-results").onclick = () => {
-  const rows = [["Student","Class","Subject","Score","Grade","Status"],
-    ...state.results.map(r => [r.student, r.cls, r.subject, r.score, grade(r.score), r.status])];
-  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\r\n");
-  const blob = new Blob(["\ufeff" + csv], { type:"text/csv;charset=utf-8;" });
-  const a = Object.assign(document.createElement("a"), {
-    href: URL.createObjectURL(blob), download: "school-results.csv"
+document.getElementById("otp-back")?.addEventListener("click", () => {
+  resetForms();
+  updateAuthFields(currentRole);
+});
+
+function friendlyAuthError(err) {
+  const map = {
+    "auth/invalid-email":          "That email address doesn't look right.",
+    "auth/user-not-found":         "No account found with that email.",
+    "auth/wrong-password":         "Incorrect password.",
+    "auth/invalid-credential":     "Email or password is incorrect.",
+    "auth/too-many-requests":      "Too many attempts. Try again later.",
+    "auth/invalid-phone-number":   "That phone number isn't valid. Include the country code.",
+    "auth/invalid-verification-code": "That SMS code is incorrect.",
+    "auth/code-expired":           "That code has expired. Request a new one.",
+    "auth/operation-not-allowed":  "This sign-in method isn't enabled in Firebase yet.",
+    "auth/unauthorized-domain":    "This domain isn't authorised in Firebase Authentication settings.",
+    "auth/invalid-app-credential": "reCAPTCHA failed. Reload the page and try again."
+  };
+  return map[err?.code] || err?.message || "Something went wrong. Please try again.";
+}
+
+function note(el, text, type = "") {
+  if (!el) return;
+  el.textContent = text;
+  el.className = "form-note" + (type ? " " + type : "");
+}
+
+/* ---------------------------------------------------------
+   7. SESSION STATE → ROLE-BASED DASHBOARD
+   --------------------------------------------------------- */
+const navSignin   = document.getElementById("nav-signin");
+const navSignout  = document.getElementById("nav-signout");
+const dashSection = document.getElementById("dashboard");
+
+if (firebaseReady) {
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      navSignin?.removeAttribute("hidden");
+      navSignout?.setAttribute("hidden", "");
+      if (dashSection) dashSection.hidden = true;
+      return;
+    }
+
+    navSignin?.setAttribute("hidden", "");
+    navSignout?.removeAttribute("hidden");
+
+    const profile = await loadProfile(user.uid);
+    if (!profile) {
+      if (dashSection) {
+        dashSection.hidden = false;
+        document.getElementById("dash-name").textContent = user.email || user.phoneNumber || "there";
+        document.getElementById("dash-role-label").textContent = "No profile found";
+        document.getElementById("dash-sub").textContent =
+          "Your account is authenticated but has no Firestore profile yet. Create a doc in the `users` collection with ID " + user.uid + ".";
+        document.getElementById("dash-grid").innerHTML = "";
+      }
+      return;
+    }
+
+    applyTheme(profile.role || "school-admin");
+    await renderDashboard(user, profile);
   });
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(a.href);
-};
-$("print-results").onclick = () => window.print();
+}
 
-// ---------------------------------------------------------------
-// 🔁 11. MASTER RENDER
-// ---------------------------------------------------------------
-function renderAll() {
-  renderStats(); renderRecent(); renderActivity();
-  if (state.currentPage === "students") renderStudents();
-  if (state.currentPage === "teachers") renderTeachers();
-  if (state.currentPage === "marks")    renderMarks();
-  if (state.currentPage === "results")  renderResults();
+navSignout?.addEventListener("click", async () => {
+  try { await signOut(auth); } catch (e) { console.error(e); }
+});
+
+async function loadProfile(uid) {
+  if (!firebaseReady) return null;
+  try {
+    const snap = await getDoc(doc(db, "users", uid));
+    return snap.exists() ? { uid, ...snap.data() } : null;
+  } catch (err) {
+    console.error("Profile load failed:", err);
+    return null;
+  }
+}
+
+async function renderDashboard(user, profile) {
+  if (!dashSection) return;
+  dashSection.hidden = false;
+
+  document.getElementById("dash-role-label").textContent = ROLE_LABELS[profile.role] || "Portal";
+  document.getElementById("dash-name").textContent = profile.name || user.email || user.phoneNumber || "there";
+  document.getElementById("dash-sub").textContent =
+    profile.schoolId ? `School workspace: ${profile.schoolId}` : "Platform-wide workspace";
+
+  const grid = document.getElementById("dash-grid");
+  const noteEl = document.getElementById("dash-note");
+  grid.innerHTML = "";
+  if (noteEl) { noteEl.textContent = "Loading live counts from Firestore…"; noteEl.className = "dash-note"; }
+
+  try {
+    const cards = await buildCards(profile);
+    grid.innerHTML = cards.map(c => `
+      <div class="dash-card">
+        <div class="dash-label">${escapeHtml(c.label)}</div>
+        <div class="dash-value">${escapeHtml(c.value)}</div>
+        <div class="dash-detail">${escapeHtml(c.detail || "")}</div>
+      </div>
+    `).join("");
+    if (noteEl) { noteEl.textContent = "Counts are read live from Firestore, scoped to your school."; noteEl.className = "dash-note"; }
+  } catch (err) {
+    console.error(err);
+    if (noteEl) { noteEl.textContent = "Could not read Firestore: " + err.message; noteEl.className = "dash-note error"; }
+  }
+}
+
+async function buildCards(profile) {
+  const cards = [];
+  const sid = profile.schoolId;
+
+  const count = async (path) => {
+    try {
+      const snap = await getCountFromServer(collection(db, path));
+      return snap.data().count;
+    } catch { return "—"; }
+  };
+
+  if (profile.role === "super-admin") {
+    cards.push({ label: "Schools", value: await count("schools"), detail: "Registered on the platform" });
+    cards.push({ label: "Users", value: await count("users"), detail: "All portal accounts" });
+    cards.push({ label: "Your access", value: "Full", detail: "Platform governance" });
+  } else if (profile.role === "school-admin" && sid) {
+    cards.push({ label: "Students", value: await count(`schools/${sid}/students`), detail: "Enrolled in your school" });
+    cards.push({ label: "Teachers", value: await count(`schools/${sid}/teachers`), detail: "Staff registered" });
+    cards.push({ label: "Classes", value: await count(`schools/${sid}/classes`), detail: "Active classes" });
+    cards.push({ label: "CPD sessions", value: await count(`schools/${sid}/cpd`), detail: "Scheduled workshops" });
+  } else if (profile.role === "teacher" && sid) {
+    cards.push({ label: "School", value: sid, detail: "Your assigned workspace" });
+    cards.push({ label: "Classes", value: await count(`schools/${sid}/classes`), detail: "Available to you" });
+    cards.push({ label: "CPD sessions", value: await count(`schools/${sid}/cpd`), detail: "Open for check-in" });
+  } else if (profile.role === "parent") {
+    const kids = Array.isArray(profile.children) ? profile.children : [];
+    cards.push({ label: "Children", value: String(kids.length), detail: kids.map(k => k.name || k.studentId).join(", ") || "None linked yet" });
+    cards.push({ label: "Access", value: "Read-only", detail: "Downloads and printing disabled" });
+  } else if (profile.role === "student") {
+    cards.push({ label: "Student ID", value: profile.studentId || "—", detail: "Your academic record" });
+    cards.push({ label: "School", value: sid || "—", detail: "Your workspace" });
+  } else {
+    cards.push({ label: "Status", value: "Signed in", detail: "Profile loaded" });
+  }
+
+  return cards;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, ch => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[ch]));
+}
+
+/* ---------------------------------------------------------
+   8. THREE.JS HERO — interactive globe with data arcs
+   --------------------------------------------------------- */
+let renderer = null, scene = null, camera = null;
+let globe = null, arcsGroup = null, globePoints = null;
+let animId = null;
+let lowPower = false;
+let pointer = { x: 0, y: 0 };
+let threeInit = false;
+
+const fallback = document.getElementById("hero-fallback");
+const powerToggle = document.getElementById("power-toggle");
+
+function supportsWebGL() {
+  try {
+    const c = document.createElement("canvas");
+    return !!(window.WebGLRenderingContext && (c.getContext("webgl") || c.getContext("experimental-webgl")));
+  } catch { return false; }
+}
+
+function initThree() {
+  // Guard: re-select the canvas every time in case DOM wasn't ready earlier
+  const canvas = document.getElementById("hero-canvas");
+  if (!canvas) {
+    console.warn("Hero canvas not found — showing fallback.");
+    return showFallback();
+  }
+  if (lowPower) return showFallback();
+  if (!supportsWebGL()) {
+    console.warn("WebGL not supported — showing fallback.");
+    return showFallback();
+  }
+  if (threeInit) return; // prevent double-init
+
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  try {
+    renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: !reduced,
+      alpha: true,
+      powerPreference: "low-power"
+    });
+  } catch (err) {
+    console.error("WebGLRenderer failed:", err);
+    return showFallback();
+  }
+
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight, false);
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(
+    45,
+    (canvas.clientWidth || window.innerWidth) / (canvas.clientHeight || window.innerHeight),
+    0.1,
+    100
+  );
+  camera.position.set(0, 0, 6.2);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+
+  // Wireframe sphere
+  const geo = new THREE.SphereGeometry(2, 32, 24);
+  const mat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(accentColor()),
+    wireframe: true,
+    transparent: true,
+    opacity: 0.22
+  });
+  globe = new THREE.Mesh(geo, mat);
+  scene.add(globe);
+
+  // Inner glow
+  const glowGeo = new THREE.SphereGeometry(1.95, 32, 24);
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(accentColor()),
+    transparent: true,
+    opacity: 0.05
+  });
+  scene.add(new THREE.Mesh(glowGeo, glowMat));
+
+  // Node dots
+  globePoints = new THREE.Group();
+  const dotGeo = new THREE.SphereGeometry(0.028, 8, 8);
+  const dotMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(accentColor()) });
+  const N = 90;
+  for (let i = 0; i < N; i++) {
+    const phi = Math.acos(1 - (2 * (i + 0.5)) / N);
+    const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+    const r = 2.02;
+    const x = r * Math.sin(phi) * Math.cos(theta);
+    const y = r * Math.cos(phi);
+    const z = r * Math.sin(phi) * Math.sin(theta);
+    const dot = new THREE.Mesh(dotGeo, dotMat);
+    dot.position.set(x, y, z);
+    globePoints.add(dot);
+  }
+  scene.add(globePoints);
+
+  // Data arcs
+  arcsGroup = new THREE.Group();
+  const arcMat = new THREE.LineBasicMaterial({
+    color: new THREE.Color(accentColor()),
+    transparent: true,
+    opacity: 0.4
+  });
+  const schools = [
+    [1.9, 0.3, 0.4], [-1.2, 1.4, 0.6], [0.4, -1.8, 0.7],
+    [-1.7, -0.6, 0.9], [1.3, 1.5, -0.6], [-0.5, 0.9, 1.7]
+  ];
+  for (let i = 0; i < schools.length; i++) {
+    const a = new THREE.Vector3(...schools[i]).normalize().multiplyScalar(2.05);
+    const b = new THREE.Vector3(...schools[(i + 1) % schools.length]).normalize().multiplyScalar(2.05);
+    const mid = a.clone().add(b).multiplyScalar(0.5).normalize().multiplyScalar(2.9);
+    const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
+    const pts = curve.getPoints(40);
+    const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
+    arcsGroup.add(new THREE.Line(lineGeo, arcMat));
+  }
+  scene.add(arcsGroup);
+
+  window.addEventListener("pointermove", (e) => {
+    pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = (e.clientY / window.innerHeight) * 2 - 1;
+  }, { passive: true });
+
+  window.addEventListener("resize", onResize, { passive: true });
+  onResize();
+
+  if (fallback) fallback.style.display = "none";
+  threeInit = true;
+  loop();
+}
+
+function onResize() {
+  if (!renderer || !camera) return;
+  const canvas = document.getElementById("hero-canvas");
+  if (!canvas) return;
+  const w = canvas.clientWidth || window.innerWidth;
+  const h = canvas.clientHeight || window.innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+
+function loop() {
+  if (lowPower) return;
+  animId = requestAnimationFrame(loop);
+
+  if (globe) globe.rotation.y += 0.0016;
+  if (globePoints) globePoints.rotation.y += 0.0016;
+  if (arcsGroup) {
+    arcsGroup.rotation.y += 0.0016;
+    arcsGroup.children.forEach((line, i) => {
+      line.material.opacity = 0.18 + Math.abs(Math.sin(performance.now() * 0.0008 + i)) * 0.4;
+    });
+  }
+  if (camera) {
+    camera.position.x += (pointer.x * 0.55 - camera.position.x) * 0.03;
+    camera.position.y += (-pointer.y * 0.35 - camera.position.y) * 0.03;
+    camera.lookAt(0, 0, 0);
+  }
+
+  if (renderer && scene && camera) renderer.render(scene, camera);
+}
+
+function stopLoop() {
+  if (animId) cancelAnimationFrame(animId);
+  animId = null;
+}
+
+function showFallback() {
+  stopLoop();
+  const canvas = document.getElementById("hero-canvas");
+  if (canvas) canvas.style.display = "none";
+  if (fallback) fallback.style.display = "flex";
+}
+
+function accentColor() {
+  const v = getComputedStyle(document.body).getPropertyValue("--accent").trim();
+  return v || "#2fd08a";
+}
+
+function updateGlobeAccent() {
+  const color = new THREE.Color(accentColor());
+  if (globe) globe.material.color.copy(color);
+  if (globePoints) globePoints.children.forEach(d => d.material.color.copy(color));
+  if (arcsGroup) arcsGroup.children.forEach(l => l.material.color.copy(color));
+}
+
+powerToggle?.addEventListener("click", () => {
+  lowPower = !lowPower;
+  powerToggle.setAttribute("aria-pressed", String(lowPower));
+  if (lowPower) {
+    showFallback();
+  } else {
+    const canvas = document.getElementById("hero-canvas");
+    if (canvas) canvas.style.display = "block";
+    if (fallback) fallback.style.display = "none";
+    if (!threeInit) initThree();
+    else loop();
+  }
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) stopLoop();
+  else if (!lowPower && threeInit) loop();
+});
+
+/* ---------------------------------------------------------
+   9. BOOT — wait for full page load so the canvas exists
+   --------------------------------------------------------- */
+if (document.readyState === "complete") {
+  initThree();
+} else {
+  window.addEventListener("load", initThree);
 }

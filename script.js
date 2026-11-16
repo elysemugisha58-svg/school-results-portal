@@ -1,14 +1,3 @@
-/* =========================================================
-   EduConnect — Firebase + Three.js integration
-   ---------------------------------------------------------
-   ➜ STEP 1: Paste your Firebase config below (section 1).
-   ➜ STEP 2: Firebase Console → Authentication → Sign-in
-             method, enable Email/Password.
-   ➜ STEP 3: Add your domain + localhost to Authentication →
-             Settings → Authorized domains.
-   ➜ STEP 4: Firestore rules must include the fee gate +
-             feedback + submissions + applications branches.
-   ========================================================= */
 
 import { initializeApp } from "firebase/app";
 import {

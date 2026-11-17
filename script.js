@@ -22,9 +22,8 @@ import {
 import * as THREE from "three";
 
 /* ---------------------------------------------------------
-   1. FIREBASE CONFIG  — REPLACE WITH YOUR OWN VALUES
+   1. FIREBASE CONFIG
    --------------------------------------------------------- */
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyBCcWkAzjh9FLpphYIdpLNcDQRhVK5FKcM",
   authDomain: "educonnect-5885b.firebaseapp.com",
@@ -33,7 +32,6 @@ const firebaseConfig = {
   messagingSenderId: "814892024989",
   appId: "1:814892024989:web:3be333f2078732aa02c074",
   measurementId: "G-GKQ1WWG2PQ"
-};
 };
 
 let app = null, auth = null, db = null, firebaseReady = false;

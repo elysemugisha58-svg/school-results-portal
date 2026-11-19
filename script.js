@@ -170,7 +170,7 @@ document.querySelectorAll(".role-tab").forEach(tab => {
 });
 
 /* ---------------------------------------------------------
-   5. SIGN IN — EMAIL / PASSWORD (all roles)
+   5. SIGN IN
    --------------------------------------------------------- */
 loginForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -648,7 +648,7 @@ async function submitAssignment(assignmentId, profile) {
 }
 
 /* ---------------------------------------------------------
-   10. ADMIN EXTRAS
+   10. ADMIN EXTRAS & CREATION FORMS
    --------------------------------------------------------- */
 async function renderAdminExtras(profile) {
   const sid = profile.schoolId;
@@ -703,6 +703,99 @@ async function renderAdminExtras(profile) {
       prEl.innerHTML = `<p class="muted error">${escapeHtml(err.message)}</p>`;
     }
   }
+
+  setupAdminCreateForms(profile);
+}
+
+function setupAdminCreateForms(profile) {
+  const sid = profile.schoolId;
+  if (!sid) return;
+
+  // --- Create Class ---
+  const cForm = document.getElementById("create-class-form");
+  if (cForm && !cForm.dataset.wired) {
+    cForm.dataset.wired = "1";
+    cForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("class-name").value.trim();
+      const level = document.getElementById("class-level").value.trim();
+      const n = document.getElementById("class-note");
+      
+      try {
+        await addDoc(collection(db, "schools", sid, "classes"), {
+          name, level, createdAt: serverTimestamp()
+        });
+        note(n, "Class created ✓", "ok");
+        cForm.reset();
+        renderDashboard(auth.currentUser, profile); // Refresh counts
+      } catch (err) {
+        note(n, "Error: " + err.message, "error");
+      }
+    });
+  }
+
+  // --- Create Subject ---
+  const sForm = document.getElementById("create-subject-form");
+  if (sForm && !sForm.dataset.wired) {
+    sForm.dataset.wired = "1";
+    sForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("subject-name").value.trim();
+      const code = document.getElementById("subject-code").value.trim();
+      const n = document.getElementById("subject-note");
+      
+      try {
+        await addDoc(collection(db, "schools", sid, "subjects"), {
+          name, code, createdAt: serverTimestamp()
+        });
+        note(n, "Subject created ✓", "ok");
+        sForm.reset();
+        renderDashboard(auth.currentUser, profile); // Refresh counts
+      } catch (err) {
+        note(n, "Error: " + err.message, "error");
+      }
+    });
+  }
+
+  // --- Register Student ---
+  const stForm = document.getElementById("create-student-form");
+  const classSelect = document.getElementById("student-class");
+  
+  // Populate the class dropdown
+  if (classSelect && classSelect.options.length <= 1) {
+    getDocs(collection(db, "schools", sid, "classes")).then(snap => {
+      classSelect.innerHTML = '<option value="">Select a class…</option>';
+      snap.forEach(d => {
+        const opt = document.createElement("option");
+        opt.value = d.id;
+        opt.textContent = d.data().name;
+        classSelect.appendChild(opt);
+      });
+    }).catch(err => console.error("Could not load classes", err));
+  }
+
+  if (stForm && !stForm.dataset.wired) {
+    stForm.dataset.wired = "1";
+    stForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("student-name").value.trim();
+      const adm = document.getElementById("student-adm").value.trim();
+      const classId = classSelect.value;
+      const gender = document.getElementById("student-gender").value;
+      const n = document.getElementById("student-note");
+      
+      try {
+        await addDoc(collection(db, "schools", sid, "students"), {
+          name, admissionNumber: adm, classId, gender, createdAt: serverTimestamp()
+        });
+        note(n, "Student registered ✓", "ok");
+        stForm.reset();
+        renderDashboard(auth.currentUser, profile); // Refresh counts
+      } catch (err) {
+        note(n, "Error: " + err.message, "error");
+      }
+    });
+  }
 }
 
 async function updateApplication(id, status) {
@@ -714,7 +807,7 @@ async function updateApplication(id, status) {
 }
 
 /* ---------------------------------------------------------
-   11. PUBLIC APPLICATION FORM (no login required)
+   11. PUBLIC APPLICATION FORM
    --------------------------------------------------------- */
 (function wireApplicationForm() {
   const form = document.getElementById("apply-form");

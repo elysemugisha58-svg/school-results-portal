@@ -50,7 +50,6 @@
       </button>
 
       <button class="btn btn-primary btn-sm" id="nav-signin" type="button" data-open-modal="school-admin">Sign in</button>
-
       <button class="btn btn-ghost btn-sm" id="nav-signout" type="button" hidden>Sign out</button>
 
       <button class="nav-burger" id="nav-burger" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Open menu">
@@ -188,7 +187,6 @@
       </header>
 
       <div class="dash-grid" id="dash-grid"></div>
-
       <div class="dash-note" id="dash-note"></div>
     </div>
   </section>
@@ -199,10 +197,7 @@
       <header class="section-head">
         <p class="eyebrow">Super Admin</p>
         <h2>User management</h2>
-        <p class="section-sub">
-          Change any user's role. The change is saved to Firestore immediately and takes effect
-          the next time that user loads or refreshes the page.
-        </p>
+        <p class="section-sub">Change any user's role. The change is saved to Firestore immediately.</p>
       </header>
 
       <div class="users-table-wrap">
@@ -221,8 +216,100 @@
           </tbody>
         </table>
       </div>
-
       <p class="form-note" id="users-note" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- ============ SCHOOL ADMIN PANEL ============ -->
+  <section class="section section-dash" id="admin-extras" hidden>
+    <div class="container">
+      <header class="section-head">
+        <p class="eyebrow">School Admin</p>
+        <h2>School Management</h2>
+        <p class="section-sub">Create classes, subjects, and register students.</p>
+      </header>
+
+      <!-- Creation Forms -->
+      <div class="portal-grid" style="margin-bottom: 40px;">
+        
+        <!-- Create Class -->
+        <div class="portal-card">
+          <h3>Create Class</h3>
+          <form id="create-class-form">
+            <div class="field">
+              <label for="class-name">Class Name</label>
+              <input id="class-name" required placeholder="e.g. P1, P2, S1" />
+            </div>
+            <div class="field">
+              <label for="class-level">Level</label>
+              <input id="class-level" required placeholder="e.g. Primary, Secondary" />
+            </div>
+            <button class="btn btn-primary" type="submit">Add Class</button>
+            <p class="form-note" id="class-note"></p>
+          </form>
+        </div>
+
+        <!-- Create Subject -->
+        <div class="portal-card">
+          <h3>Create Subject</h3>
+          <form id="create-subject-form">
+            <div class="field">
+              <label for="subject-name">Subject Name</label>
+              <input id="subject-name" required placeholder="e.g. Mathematics" />
+            </div>
+            <div class="field">
+              <label for="subject-code">Subject Code</label>
+              <input id="subject-code" required placeholder="e.g. MATH101" />
+            </div>
+            <button class="btn btn-primary" type="submit">Add Subject</button>
+            <p class="form-note" id="subject-note"></p>
+          </form>
+        </div>
+
+        <!-- Register Student -->
+        <div class="portal-card">
+          <h3>Register Student</h3>
+          <form id="create-student-form">
+            <div class="field">
+              <label for="student-name">Student Full Name</label>
+              <input id="student-name" required placeholder="e.g. Uwimana Aline" />
+            </div>
+            <div class="field">
+              <label for="student-adm">Admission Number</label>
+              <input id="student-adm" required placeholder="e.g. KBF/2025/001" />
+            </div>
+            <div class="field">
+              <label for="student-class">Class</label>
+              <select id="student-class" required>
+                <option value="">Loading classes…</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="student-gender">Gender</label>
+              <select id="student-gender" required>
+                <option value="F">Female</option>
+                <option value="M">Male</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" type="submit">Register Student</button>
+            <p class="form-note" id="student-note"></p>
+          </form>
+        </div>
+      </div>
+
+      <!-- Lists -->
+      <div class="portal-grid">
+        <div class="portal-card">
+          <h3>Pending applications</h3>
+          <div id="admin-applications" class="list-stack"><p class="muted">Loading…</p></div>
+        </div>
+
+        <div class="portal-card">
+          <h3>Parent fee status</h3>
+          <p class="muted">Toggle "cleared" once a family has paid — this unlocks their child's results.</p>
+          <div id="admin-parents" class="list-stack"><p class="muted">Loading…</p></div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -235,12 +322,10 @@
       </header>
 
       <div class="fee-banner" id="fee-banner" hidden>
-        ⚠️ <strong>Results are locked.</strong> Your child's academic results will become visible
-        once school fees for this term have been cleared by the school office.
+        ⚠️ <strong>Results are locked.</strong> Your child's academic results will become visible once school fees for this term have been cleared by the school office.
       </div>
 
       <div class="portal-grid">
-
         <div class="portal-card">
           <h3>Academic results</h3>
           <div id="parent-results"></div>
@@ -248,9 +333,7 @@
 
         <div class="portal-card">
           <h3>School announcements</h3>
-          <div id="parent-announcements" class="list-stack">
-            <p class="muted">Loading…</p>
-          </div>
+          <div id="parent-announcements" class="list-stack"><p class="muted">Loading…</p></div>
         </div>
 
         <div class="portal-card">
@@ -282,7 +365,6 @@
           <h3>Children's assignments</h3>
           <div id="parent-assignments" class="list-stack"><p class="muted">Loading…</p></div>
         </div>
-
       </div>
     </div>
   </section>
@@ -296,52 +378,22 @@
       </header>
 
       <div class="portal-grid">
-
         <div class="portal-card">
           <h3>Your assignments</h3>
           <div id="student-assignments" class="list-stack"><p class="muted">Loading…</p></div>
         </div>
-
         <div class="portal-card">
           <h3>Your submissions</h3>
           <div id="student-submissions" class="list-stack"><p class="muted">Loading…</p></div>
         </div>
-
         <div class="portal-card">
           <h3>Your results</h3>
           <div id="student-results"><p class="muted">Loading…</p></div>
         </div>
-
         <div class="portal-card">
           <h3>Announcements</h3>
           <div id="student-announcements" class="list-stack"><p class="muted">Loading…</p></div>
         </div>
-
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ ADMIN EXTRAS ============ -->
-  <section class="section section-dash" id="admin-extras" hidden>
-    <div class="container">
-      <header class="section-head">
-        <p class="eyebrow">School Admin</p>
-        <h2>Applications &amp; fee status</h2>
-      </header>
-
-      <div class="portal-grid">
-
-        <div class="portal-card">
-          <h3>Pending applications</h3>
-          <div id="admin-applications" class="list-stack"><p class="muted">Loading…</p></div>
-        </div>
-
-        <div class="portal-card">
-          <h3>Parent fee status</h3>
-          <p class="muted">Toggle "cleared" once a family has paid — this unlocks their child's results.</p>
-          <div id="admin-parents" class="list-stack"><p class="muted">Loading…</p></div>
-        </div>
-
       </div>
     </div>
   </section>
@@ -357,35 +409,14 @@
 
       <form id="apply-form" class="apply-form">
         <div class="apply-grid">
-          <div class="field">
-            <label for="ap-student">Student full name</label>
-            <input id="ap-student" required />
-          </div>
-          <div class="field">
-            <label for="ap-class">Class applying for</label>
-            <input id="ap-class" required placeholder="e.g. P1, S2" />
-          </div>
-          <div class="field">
-            <label for="ap-parent">Parent / guardian name</label>
-            <input id="ap-parent" required />
-          </div>
-          <div class="field">
-            <label for="ap-phone">Parent phone</label>
-            <input id="ap-phone" type="tel" required placeholder="+250 7XX XXX XXX" />
-          </div>
-          <div class="field">
-            <label for="ap-email">Parent email</label>
-            <input id="ap-email" type="email" required />
-          </div>
-          <div class="field">
-            <label for="ap-school">Preferred school code</label>
-            <input id="ap-school" required placeholder="e.g. KBF-01" />
-          </div>
+          <div class="field"><label for="ap-student">Student full name</label><input id="ap-student" required /></div>
+          <div class="field"><label for="ap-class">Class applying for</label><input id="ap-class" required placeholder="e.g. P1, S2" /></div>
+          <div class="field"><label for="ap-parent">Parent / guardian name</label><input id="ap-parent" required /></div>
+          <div class="field"><label for="ap-phone">Parent phone</label><input id="ap-phone" type="tel" required placeholder="+250 7XX XXX XXX" /></div>
+          <div class="field"><label for="ap-email">Parent email</label><input id="ap-email" type="email" required /></div>
+          <div class="field"><label for="ap-school">Preferred school code</label><input id="ap-school" required placeholder="e.g. KBF-01" /></div>
         </div>
-        <div class="field">
-          <label for="ap-notes">Anything we should know?</label>
-          <textarea id="ap-notes" rows="3" maxlength="500"></textarea>
-        </div>
+        <div class="field"><label for="ap-notes">Anything we should know?</label><textarea id="ap-notes" rows="3" maxlength="500"></textarea></div>
         <button class="btn btn-primary" type="submit">Submit application</button>
         <p class="form-note" id="apply-note"></p>
       </form>

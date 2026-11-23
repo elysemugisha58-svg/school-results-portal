@@ -1,7 +1,8 @@
-// 1. IMPORT FIREBASE MODULES
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyBCcWkAzjh9FLpphYIdpLNcDQRhVK5FKcM",
   authDomain: "educonnect-5885b.firebaseapp.com",
@@ -11,9 +12,13 @@ const firebaseConfig = {
   appId: "1:814892024989:web:3be333f2078732aa02c074",
   measurementId: "G-GKQ1WWG2PQ"
 };
+
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// Grab HTML Elements
 const loginScreen = document.getElementById('login-screen');
 const dashboardScreen = document.getElementById('dashboard-screen');
 const emailInput = document.getElementById('email');
@@ -22,58 +27,65 @@ const loginBtn = document.getElementById('login-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const loginError = document.getElementById('login-error');
 const userNameDisplay = document.getElementById('user-name-display');
+
+// --- 1. HANDLE LOGIN ---
 loginBtn.addEventListener('click', async (e) => {
-    e.preventDefault(); // Prevents page reload
+    e.preventDefault();
     loginError.style.display = 'none'; // Hide previous errors
 
     try {
-        // Authenticate with Firebase
         await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
-        // If successful, the onAuthStateChanged function below will handle the screen switch
+        // Success is handled by onAuthStateChanged below
     } catch (error) {
-        // If password is wrong or user doesn't exist, show error
         loginError.textContent = "Login failed: " + error.message;
         loginError.style.display = 'block';
     }
 });
 
-// 6. HANDLE LOGOUT BUTTON CLICK
+// --- 2. HANDLE LOGOUT ---
 logoutBtn.addEventListener('click', () => {
-    signOut(auth);
+    signOut(auth).then(() => {
+        console.log("Logged out successfully");
+    }).catch((error) => {
+        console.error("Error logging out:", error);
+    });
 });
 
-// 7. CHECK LOGIN STATUS AUTOMATICALLY ON PAGE LOAD
+// --- 3. CHECK LOGIN STATUS & SECURITY ---
 onAuthStateChanged(auth, async (user) => {
     if (user) {
-        // User is logged in
+        // User is logged in, fetch their profile
         try {
-            // Fetch their profile from Firestore
             const userDocRef = doc(db, 'users', user.uid);
             const userDoc = await getDoc(userDocRef);
 
             if (userDoc.exists()) {
                 const userData = userDoc.data();
                 
-                // Update the name in the sidebar
-                if (userData.name) {
-                    userNameDisplay.textContent = userData.name;
-                }
+                // 🔒 SECURITY CHECK: Only allow superAdmins
+                if (userData.role === 'superAdmin') {
+                    
+                    if (userData.name) {
+                        userNameDisplay.textContent = userData.name;
+                    }
 
-                // Hide Login, Show Dashboard
-                loginScreen.style.display = 'none';
-                dashboardScreen.style.display = 'flex';
+                    // Show Dashboard, Hide Login
+                    loginScreen.style.display = 'none';
+                    dashboardScreen.style.display = 'flex';
+                } else {
+                    // Logged in, but not a super admin
+                    alert("Access Denied. You are not a Super Admin.");
+                    signOut(auth);
+                }
             } else {
-                // No profile in Firestore
-                loginError.textContent = "No profile found in Firestore. Contact admin.";
-                loginError.style.display = 'block';
+                alert("No profile found in Firestore.");
                 signOut(auth);
             }
         } catch (error) {
-            console.error("Error fetching data:", error);
+            console.error("Error fetching user data:", error);
         }
     } else {
         // User is NOT logged in
-        // Show Login, Hide Dashboard
         loginScreen.style.display = 'flex';
         dashboardScreen.style.display = 'none';
     }

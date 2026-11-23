@@ -1,9 +1,8 @@
-// 1. IMPORT FIREBASE MODULES (Using CDN for standard HTML sites)
+// 1. IMPORT FIREBASE MODULES
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 const firebaseConfig = {
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyBCcWkAzjh9FLpphYIdpLNcDQRhVK5FKcM",
   authDomain: "educonnect-5885b.firebaseapp.com",
@@ -13,9 +12,10 @@ const firebaseConfig = {
   appId: "1:814892024989:web:3be333f2078732aa02c074",
   measurementId: "G-GKQ1WWG2PQ"
 };
-};
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
+
 const db = getFirestore(app);
 const loginScreen = document.getElementById('login-screen');
 const dashboardScreen = document.getElementById('dashboard-screen');

@@ -13,21 +13,58 @@
     <!-- ========================================== -->
     <div id="login-screen">
         
-        <!-- LOGIN BOX -->
-        <div class="login-box">
-            <h2>Portal Login</h2>
-            <p>Welcome back! Please log in to your dashboard.</p>
-            
-            <!-- Error Message Container -->
-            <p id="login-error" style="color: #ef4444; display: none; margin-bottom: 15px; font-weight: bold;"></p>
-            
-            <!-- Inputs -->
-            <input type="email" id="email" placeholder="Email address">
-            <input type="password" id="password" placeholder="Password">
-            
-            <!-- Button -->
-            <button id="login-btn">Log In</button>
+        <div class="login-container">
+            <!-- LEFT SIDE: Platform Features -->
+            <div class="features-section">
+                <h1>School Results Portal</h1>
+                <p>The all-in-one platform for managing academic results and school data securely.</p>
+                
+                <ul class="feature-list">
+                    <li>
+                        <span class="icon">🏫</span>
+                        <div>
+                            <strong>Manage Multiple Schools</strong>
+                            <p>Oversee all schools from one central dashboard.</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="icon">📊</span>
+                        <div>
+                            <strong>Real-time Analytics</strong>
+                            <p>Track student and teacher performance instantly.</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="icon">🔒</span>
+                        <div>
+                            <strong>Secure Role-Based Access</strong>
+                            <p>Different dashboards for Super Admins, Teachers, and Students.</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="icon">📄</span>
+                        <div>
+                            <strong>Instant Result Publishing</strong>
+                            <p>Generate and publish student reports effortlessly.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- RIGHT SIDE: Login Box -->
+            <div class="login-box">
+                <h2>Welcome Back</h2>
+                <p>Please log in to access your dashboard.</p>
+                
+                <p id="login-error" style="color: #ef4444; display: none; margin-bottom: 15px; font-weight: bold;"></p>
+                
+                <input type="email" id="email" placeholder="Email address">
+                <input type="password" id="password" placeholder="Password">
+                
+                <button id="login-btn">Log In</button>
+            </div>
         </div>
+
     </div>
 
     <!-- ========================================== -->

@@ -21,23 +21,26 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh; /* Forces it to take full screen height */
     width: 100vw;
     position: relative;
     
-    /* 🖼️ THE BACKGROUND IMAGE IS HERE */
-    background-image: url('https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2071&auto=format&fit=crop');
+    /* 1. Fallback Gradient (Looks like a 3D sky) */
+    background: linear-gradient(135deg, #1e1b4b 0%, #0f0f1a 100%);
+    
+    /* 2. The Image */
+    background-image: url('https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2104&auto=format&fit=crop');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
 }
 
-/* The Dark Overlay (so the glass box looks good) */
+/* The Dark Overlay */
 #login-screen::before {
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(15, 15, 26, 0.6); /* 60% dark overlay */
+    background: rgba(15, 15, 26, 0.6); 
     z-index: 1;
 }
 
@@ -45,8 +48,8 @@ body {
 .login-box {
     position: relative;
     z-index: 2;
-    background: rgba(22, 22, 37, 0.7);
-    backdrop-filter: blur(16px); /* Frosted glass */
+    background: rgba(22, 22, 37, 0.75);
+    backdrop-filter: blur(16px); 
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 40px;

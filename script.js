@@ -1,6 +1,38 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        try {
+            const userDocRef = doc(db, 'users', user.uid);
+            const userDoc = await getDoc(userDocRef);
+
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                
+                if (userData.role === 'superAdmin') {
+                    if (userData.name) {
+                        userNameDisplay.textContent = userData.name;
+                    }
+
+                    // HIDE LANDING PAGE, SHOW DASHBOARD
+                    document.getElementById('landing-page').style.display = 'none';
+                    document.getElementById('login-modal').classList.remove('active');
+                    document.getElementById('dashboard-screen').style.display = 'flex';
+                } else {
+                    alert("Access Denied. You are not a Super Admin.");
+                    signOut(auth);
+                }
+            } else {
+                alert("No profile found in Firestore.");
+                signOut(auth);
+            }
+        } catch (error) {
+            console.error("Error fetching user data:", error);
+        }
+    } else {
+        // SHOW LANDING PAGE, HIDE DASHBOARD
+        document.getElementById('landing-page').style.display = 'block';
+        document.getElementById('dashboard-screen').style.display = 'none';
+    }
+});
 
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {

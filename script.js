@@ -70,7 +70,7 @@ onAuthStateChanged(auth, async (user) => {
                     }
 
                     // Show Dashboard, Hide Login
-                    loginScreen.style.display = 'none';
+                   document.getElementById('landing-page').style.display = 'none';)
                     dashboardScreen.style.display = 'flex';
                 } else {
                     // Logged in, but not a super admin

@@ -9,62 +9,55 @@
 <body>
 
     <!-- ========================================== -->
-    <!-- LOGIN SCREEN -->
+    <!-- LANDING PAGE (Visible when logged out) -->
     <!-- ========================================== -->
-    <div id="login-screen">
+    <div id="landing-page">
         
-        <div class="login-container">
-            <!-- LEFT SIDE: Platform Features -->
-            <div class="features-section">
-                <h1>School Results Portal</h1>
-                <p>The all-in-one platform for managing academic results and school data securely.</p>
+        <!-- Top Navigation Bar -->
+        <nav class="navbar">
+            <div class="logo">EdTech Portal</div>
+            <div class="nav-links">
+                <a href="#">About</a>
+                <a href="#">Features</a>
+                <a href="#">Support</a>
+            </div>
+            <button id="open-login-btn" class="nav-login-btn">Log In</button>
+        </nav>
+
+        <!-- Main Hero Section -->
+        <div class="hero-content">
+            <div class="hero-card">
+                <span class="tagline">• TECHNOLOGY • EDUCATION • INNOVATION</span>
+                <h1>Building Digital Solutions for Learning & Results.</h1>
+                <p>
+                    Manage multiple schools, track student performance, and publish secure academic results all from one unified, real-time dashboard.
+                </p>
                 
-                <ul class="feature-list">
-                    <li>
-                        <span class="icon">🏫</span>
-                        <div>
-                            <strong>Manage Multiple Schools</strong>
-                            <p>Oversee all schools from one central dashboard.</p>
-                        </div>
-                    </li>
-                    <li>
-                        <span class="icon">📊</span>
-                        <div>
-                            <strong>Real-time Analytics</strong>
-                            <p>Track student and teacher performance instantly.</p>
-                        </div>
-                    </li>
-                    <li>
-                        <span class="icon">🔒</span>
-                        <div>
-                            <strong>Secure Role-Based Access</strong>
-                            <p>Different dashboards for Super Admins, Teachers, and Students.</p>
-                        </div>
-                    </li>
-                    <li>
-                        <span class="icon">📄</span>
-                        <div>
-                            <strong>Instant Result Publishing</strong>
-                            <p>Generate and publish student reports effortlessly.</p>
-                        </div>
-                    </li>
+                <ul class="feature-highlights">
+                    <li>✔️ Role-based access (Super Admins & School Admins)</li>
+                    <li>✔️ Real-time analytics and student tracking</li>
+                    <li>✔️ Instant report generation and secure data storage</li>
                 </ul>
             </div>
-
-            <!-- RIGHT SIDE: Login Box -->
-            <div class="login-box">
-                <h2>Welcome Back</h2>
-                <p>Please log in to access your dashboard.</p>
-                
-                <p id="login-error" style="color: #ef4444; display: none; margin-bottom: 15px; font-weight: bold;"></p>
-                
-                <input type="email" id="email" placeholder="Email address">
-                <input type="password" id="password" placeholder="Password">
-                
-                <button id="login-btn">Log In</button>
-            </div>
         </div>
+    </div>
 
+    <!-- ========================================== -->
+    <!-- LOGIN MODAL (Hidden by default) -->
+    <!-- ========================================== -->
+    <div id="login-modal" class="modal-overlay">
+        <div class="login-box">
+            <button id="close-login-btn" class="close-btn">&times;</button>
+            <h2>Welcome Back</h2>
+            <p>Please enter your credentials to access the dashboard.</p>
+            
+            <p id="login-error" style="color: #ef4444; display: none; margin-bottom: 15px; font-weight: bold;"></p>
+            
+            <input type="email" id="email" placeholder="Email address">
+            <input type="password" id="password" placeholder="Password">
+            
+            <button id="login-btn">Log In</button>
+        </div>
     </div>
 
     <!-- ========================================== -->
@@ -96,7 +89,6 @@
             <h1>Dashboard Overview</h1>
             <p class="subtitle">Welcome back. Here is what is happening today.</p>
 
-            <!-- Stats Cards -->
             <div class="stats-grid">
                 <div class="stat-card">
                     <h3>Total Schools</h3>
@@ -112,7 +104,6 @@
                 </div>
             </div>
 
-            <!-- Data Table -->
             <div class="table-container">
                 <div class="table-header">
                     <h2>Recently Added Schools</h2>

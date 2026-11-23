@@ -8,18 +8,37 @@
 </head>
 <body>
 
-    <!-- LOGIN SCREEN (Hidden by default if already logged in) -->
-    <div id="login-screen" style="display: flex; justify-content: center; align-items: center; height: 100vh;">
+    <!-- ========================================== -->
+    <!-- LOGIN SCREEN -->
+    <!-- ========================================== -->
+    <div id="login-screen">
+        
+        <!-- Background Video -->
+        <video autoplay loop muted playsinline id="bg-video">
+            <source src="https://cdn.pixabay.com/video/2023/10/12/184859-874220347_large.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+
+        <!-- Login Box -->
         <div class="login-box">
             <h2>Portal Login</h2>
-            <p id="login-error" style="color: red; display: none;"></p>
-            <input type="email" id="email" placeholder="Email">
+            <p>Welcome back! Please log in to your dashboard.</p>
+            
+            <!-- Error Message Container -->
+            <p id="login-error" style="color: #ef4444; display: none; margin-bottom: 15px; font-weight: bold;"></p>
+            
+            <!-- Inputs -->
+            <input type="email" id="email" placeholder="Email address">
             <input type="password" id="password" placeholder="Password">
+            
+            <!-- Button -->
             <button id="login-btn">Log In</button>
         </div>
     </div>
 
-    <!-- DASHBOARD SCREEN (Hidden until logged in) -->
+    <!-- ========================================== -->
+    <!-- DASHBOARD SCREEN (Hidden by default) -->
+    <!-- ========================================== -->
     <div id="dashboard-screen" style="display: none;">
         
         <!-- Sidebar -->
@@ -46,7 +65,7 @@
             <h1>Dashboard Overview</h1>
             <p class="subtitle">Welcome back. Here is what is happening today.</p>
 
-            <!-- Stats -->
+            <!-- Stats Cards -->
             <div class="stats-grid">
                 <div class="stat-card">
                     <h3>Total Schools</h3>
@@ -62,7 +81,7 @@
                 </div>
             </div>
 
-            <!-- Table -->
+            <!-- Data Table -->
             <div class="table-container">
                 <div class="table-header">
                     <h2>Recently Added Schools</h2>
@@ -91,6 +110,11 @@
                             <td><strong>Sunrise Primary</strong></td>
                             <td>Kampala</td>
                             <td><span class="badge pending">Pending</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Unity College</strong></td>
+                            <td>Dar es Salaam</td>
+                            <td><span class="badge active">Active</span></td>
                         </tr>
                     </tbody>
                 </table>
